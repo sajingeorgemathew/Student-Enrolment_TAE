@@ -30,39 +30,18 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files
 .env
 .env.local
 .env.*.local
-Update the env structure.
 
-Create `.env.example` only. Do not create `.env.local` and do not add real secrets.
-
-Use these variables:
-
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-
-RESEND_API_KEY=
-RESEND_FROM_EMAIL=
-ADMIN_NOTIFICATION_EMAIL_1=
-ADMIN_NOTIFICATION_EMAIL_2=
-
-CONTRACT_HEADER_LOGO_URL=
-CONTRACT_FOOTER_LEFT_IMAGE_URL=
-CONTRACT_FOOTER_RIGHT_IMAGE_URL=
-
-NEXT_PUBLIC_CONTRACT_HEADER_LOGO_URL=
-NEXT_PUBLIC_CONTRACT_FOOTER_LEFT_IMAGE_URL=
-NEXT_PUBLIC_CONTRACT_FOOTER_RIGHT_IMAGE_URL=
-
-APP_BASE_URL=http://localhost:3000
-
-Also update README.md to explain that `.env.local` must be created locally and never committed.
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only reference source files
+_reference/source-files/*
+!_reference/source-files/.gitkeep
