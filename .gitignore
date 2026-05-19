@@ -45,3 +45,4 @@ next-env.d.ts
 # local-only reference source files
 _reference/source-files/*
 !_reference/source-files/.gitkeep
+.claude/
