@@ -156,9 +156,9 @@ Example after creating the user in Supabase Auth:
 ```sql
 insert into public.profiles (id, full_name, email, role)
 values (
-  'PASTE_AUTH_USER_UUID_HERE',
+  '5a8041fe-9c4d-43e8-93b2-a0b384ccf7f4',
   'Sajin George Mathew',
-  'PASTE_ADMIN_EMAIL_HERE',
+  'admin@torontoacademy.ca',
   'admin'
 )
 on conflict (id) do update
