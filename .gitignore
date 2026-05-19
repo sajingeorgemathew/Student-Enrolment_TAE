@@ -46,3 +46,5 @@ next-env.d.ts
 _reference/source-files/*
 !_reference/source-files/.gitkeep
 .claude/
+
+.claude/
