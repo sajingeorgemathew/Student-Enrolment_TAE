@@ -6,6 +6,7 @@ import { logout } from "@/app/auth/actions";
 import {
   LayoutDashboard,
   ClipboardList,
+  ClipboardCheck,
   Users,
   BookOpen,
   Layers,
@@ -21,6 +22,7 @@ const navItems = [
   { label: "Students", href: "/dashboard/students", icon: Users },
   { label: "Programs", href: "/dashboard/programs", icon: BookOpen },
   { label: "Batches", href: "/dashboard/batches", icon: Layers },
+  { label: "Checklists", href: "/dashboard/checklists", icon: ClipboardCheck },
   { label: "Documents", href: "/dashboard/documents", icon: FileText },
   { label: "Fees", href: "/dashboard/fees", icon: DollarSign },
   { label: "Contracts", href: "/dashboard/contracts", icon: ScrollText },
