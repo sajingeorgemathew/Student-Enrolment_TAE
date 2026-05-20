@@ -27,9 +27,10 @@ const navItems = [
 interface SidebarProps {
   userEmail: string;
   userRole: string | null;
+  userFullName: string | null;
 }
 
-export function Sidebar({ userEmail, userRole }: SidebarProps) {
+export function Sidebar({ userEmail, userRole, userFullName }: SidebarProps) {
   const pathname = usePathname();
 
   return (
@@ -71,11 +72,16 @@ export function Sidebar({ userEmail, userRole }: SidebarProps) {
 
       <div className="border-t border-zinc-200 px-4 py-4">
         <div className="mb-3 px-2">
-          <p className="truncate text-sm font-medium text-zinc-900">
-            {userEmail}
-          </p>
+          {userFullName && (
+            <p className="truncate text-sm font-medium text-zinc-900">
+              {userFullName}
+            </p>
+          )}
+          <p className="truncate text-xs text-zinc-500">{userEmail}</p>
           {userRole && (
-            <p className="text-xs text-zinc-500 capitalize">{userRole}</p>
+            <p className="mt-0.5 text-xs text-zinc-400 capitalize">
+              {userRole}
+            </p>
           )}
         </div>
         <form action={logout}>

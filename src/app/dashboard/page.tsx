@@ -1,4 +1,4 @@
-import { getUserRole } from "@/lib/roles";
+import { getUserProfile } from "@/lib/profile";
 import {
   ClipboardList,
   Users,
@@ -48,16 +48,21 @@ const cards = [
 ];
 
 export default async function DashboardPage() {
-  const role = await getUserRole();
+  const profile = await getUserProfile();
+
+  const greeting = profile?.full_name
+    ? `Welcome, ${profile.full_name}`
+    : "Dashboard";
+
+  const subtitle = profile
+    ? `Signed in as ${profile.role}`
+    : "Welcome to the TAE Student Enrolment system";
 
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-zinc-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Welcome to the TAE Student Enrolment system
-          {role ? ` — signed in as ${role}` : ""}
-        </p>
+        <h1 className="text-2xl font-semibold text-zinc-900">{greeting}</h1>
+        <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
