@@ -2,6 +2,7 @@ import { getUserProfile } from "@/lib/profile";
 import {
   ClipboardList,
   Users,
+  BookOpen,
   Layers,
   FileText,
   DollarSign,
@@ -22,8 +23,14 @@ const cards = [
     icon: Users,
   },
   {
+    title: "Programs",
+    description: "Manage academic programs and fees",
+    href: "/dashboard/programs",
+    icon: BookOpen,
+  },
+  {
     title: "Batches",
-    description: "Organize student batches",
+    description: "Manage program batches and schedules",
     href: "/dashboard/batches",
     icon: Layers,
   },
