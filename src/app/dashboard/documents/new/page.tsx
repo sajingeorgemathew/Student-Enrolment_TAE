@@ -1,10 +1,24 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getStudentsForUpload } from "@/features/documents/actions";
+import { getStudentsForUpload, getApplicationsForStudent } from "@/features/documents/actions";
 import { DocumentUploadForm } from "@/features/documents/document-upload-form";
 
-export default async function NewDocumentPage() {
-  const students = await getStudentsForUpload();
+export default async function NewDocumentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ studentId?: string }>;
+}) {
+  const { studentId } = await searchParams;
+  const [students, initialApps] = await Promise.all([
+    getStudentsForUpload(),
+    studentId ? getApplicationsForStudent(studentId) : Promise.resolve([]),
+  ]);
+  const initialApplications = initialApps.map((app) => ({
+    id: app.id,
+    status: app.status,
+    programs: app.programs as unknown as { id: string; program_code: string; program_name: string } | null,
+    batches: app.batches as unknown as { id: string; batch_name: string } | null,
+  }));
 
   return (
     <div>
@@ -33,7 +47,7 @@ export default async function NewDocumentPage() {
             </p>
           </div>
         ) : (
-          <DocumentUploadForm students={students} />
+          <DocumentUploadForm students={students} defaultStudentId={studentId} initialApplications={initialApplications} />
         )}
       </div>
     </div>

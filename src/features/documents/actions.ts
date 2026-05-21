@@ -162,11 +162,11 @@ export async function uploadDocument(
     return { success: false, error: "File size must be under 10 MB." };
   }
 
-  const timestamp = Date.now();
+  const uniqueId = crypto.randomUUID();
   const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const storagePath = applicationId
-    ? `students/${studentId}/applications/${applicationId}/${documentType}/${timestamp}-${sanitizedName}`
-    : `students/${studentId}/${documentType}/${timestamp}-${sanitizedName}`;
+    ? `students/${studentId}/applications/${applicationId}/${documentType}/${uniqueId}-${sanitizedName}`
+    : `students/${studentId}/${documentType}/${uniqueId}-${sanitizedName}`;
 
   const supabase = await createClient();
 
@@ -211,6 +211,7 @@ export async function uploadDocument(
   }
 
   revalidatePath("/dashboard/documents");
+  revalidatePath(`/dashboard/students/${studentId}`);
 
   return { success: true };
 }

@@ -24,6 +24,12 @@ const documentTypeLabels: Record<string, string> = {
   english_test: "English Test",
   immigration_status: "Immigration Status",
   payment_proof: "Payment Proof",
+  placement_document: "Placement Document",
+  plar: "PLAR",
+  readmission: "Readmission",
+  withdrawal: "Withdrawal",
+  transcript_moodle_export: "Transcript / Moodle Export",
+  contract_document: "Contract Document",
   other: "Other",
 };
 

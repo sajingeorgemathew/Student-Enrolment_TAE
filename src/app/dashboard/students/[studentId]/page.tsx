@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { getStudentById } from "@/features/students/actions";
 
 const statusLabels: Record<string, string> = {
@@ -39,6 +39,30 @@ const documentStatusLabels: Record<string, string> = {
   accepted: "Accepted",
   needs_correction: "Needs Correction",
   archived: "Archived",
+};
+
+const documentStatusColors: Record<string, string> = {
+  uploaded: "bg-blue-100 text-blue-800",
+  accepted: "bg-green-100 text-green-800",
+  needs_correction: "bg-orange-100 text-orange-800",
+  archived: "bg-zinc-100 text-zinc-600",
+};
+
+const documentTypeLabels: Record<string, string> = {
+  photo_id: "Photo ID",
+  address_proof: "Address Proof",
+  academic_transcript: "Academic Transcript",
+  diploma_certificate: "Diploma / Certificate",
+  english_test: "English Test",
+  immigration_status: "Immigration Status",
+  payment_proof: "Payment Proof",
+  placement_document: "Placement Document",
+  plar: "PLAR",
+  readmission: "Readmission",
+  withdrawal: "Withdrawal",
+  transcript_moodle_export: "Transcript / Moodle Export",
+  contract_document: "Contract Document",
+  other: "Other",
 };
 
 const contractStatusLabels: Record<string, string> = {
@@ -408,54 +432,77 @@ export default async function StudentDetailPage({
           )}
         </Section>
 
-        {/* Documents Placeholder */}
-        <Section title="Documents">
-          {documents.length === 0 ? (
-            <EmptyState message="No documents uploaded yet. Documents will appear here once uploaded." />
-          ) : (
-            <div className="overflow-hidden rounded-md border border-zinc-200">
-              <table className="min-w-full divide-y divide-zinc-200">
-                <thead className="bg-zinc-50">
-                  <tr>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Type
-                    </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      File Name
-                    </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Status
-                    </th>
-                    <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Uploaded
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {documents.map((doc) => (
-                    <tr key={doc.id}>
-                      <td className="px-4 py-2.5 text-sm text-zinc-900 capitalize">
-                        {doc.document_type.replace(/_/g, " ")}
-                      </td>
-                      <td className="px-4 py-2.5 text-sm text-zinc-600">
-                        {doc.file_name}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span className="inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
-                          {documentStatusLabels[doc.review_status] ??
-                            doc.review_status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 text-sm text-zinc-500">
-                        {new Date(doc.created_at).toLocaleDateString("en-CA")}
-                      </td>
+        {/* Documents */}
+        <div className="rounded-lg border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+            <h2 className="text-base font-semibold text-zinc-900">Documents</h2>
+            <Link
+              href={`/dashboard/documents/new?studentId=${studentId}`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Upload Document
+            </Link>
+          </div>
+          <div className="px-6 py-5">
+            {documents.length === 0 ? (
+              <EmptyState message="No documents uploaded yet. Documents will appear here once uploaded." />
+            ) : (
+              <div className="overflow-hidden rounded-md border border-zinc-200">
+                <table className="min-w-full divide-y divide-zinc-200">
+                  <thead className="bg-zinc-50">
+                    <tr>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Type
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        File Name
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Status
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Uploaded
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Section>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {documents.map((doc) => (
+                      <tr key={doc.id} className="hover:bg-zinc-50">
+                        <td className="px-4 py-2.5 text-sm text-zinc-900">
+                          {documentTypeLabels[doc.document_type] ?? doc.document_type.replace(/_/g, " ")}
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-zinc-600 max-w-48 truncate">
+                          {doc.file_name}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${documentStatusColors[doc.review_status] ?? "bg-zinc-100 text-zinc-600"}`}>
+                            {documentStatusLabels[doc.review_status] ??
+                              doc.review_status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-zinc-500">
+                          {new Date(doc.created_at).toLocaleDateString("en-CA")}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <Link
+                            href={`/dashboard/documents/${doc.id}`}
+                            className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Contract Readiness Placeholder */}
         <Section title="Contract Readiness">
