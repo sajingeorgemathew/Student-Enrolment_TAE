@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus } from "lucide-react";
 import { getStudentById } from "@/features/students/actions";
+import { StudentEditForm } from "@/features/students/student-edit-form";
 
 const statusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -63,6 +64,13 @@ const documentTypeLabels: Record<string, string> = {
   transcript_moodle_export: "Transcript / Moodle Export",
   contract_document: "Contract Document",
   other: "Other",
+};
+
+const uploadedByTypeLabels: Record<string, string> = {
+  sales_user: "Sales",
+  admin_user: "Admin",
+  student_link: "Student",
+  staff: "Staff",
 };
 
 const contractStatusLabels: Record<string, string> = {
@@ -151,61 +159,9 @@ export default async function StudentDetailPage({
       </div>
 
       <div className="space-y-6">
-        {/* Student Information */}
-        <Section title="Student Information">
-          <FieldGrid>
-            <Field label="Legal First Name" value={student.legal_first_name} />
-            <Field label="Legal Middle Name" value={student.legal_middle_name} />
-            <Field label="Legal Last Name" value={student.legal_last_name} />
-            <Field label="Preferred Name" value={student.preferred_name} />
-            <Field
-              label="Date of Birth"
-              value={
-                student.date_of_birth
-                  ? new Date(student.date_of_birth).toLocaleDateString("en-CA")
-                  : null
-              }
-            />
-            <Field label="Student Number" value={student.student_number} />
-            <Field
-              label="Immigration Status"
-              value={student.immigration_status}
-            />
-            <Field
-              label="International Student"
-              value={
-                student.international_student === null
-                  ? null
-                  : student.international_student
-                    ? "Yes"
-                    : "No"
-              }
-            />
-          </FieldGrid>
-        </Section>
-
-        {/* Contact Information */}
-        <Section title="Contact Information">
-          <FieldGrid>
-            <Field label="Email" value={student.email} />
-            <Field label="Phone" value={student.phone} />
-            <Field label="Alternate Phone" value={student.alternate_phone} />
-            <Field
-              label="Mailing Address"
-              value={
-                [
-                  student.mailing_address_line_1,
-                  student.mailing_address_line_2,
-                ]
-                  .filter(Boolean)
-                  .join(", ") || null
-              }
-            />
-            <Field label="City" value={student.city} />
-            <Field label="Province" value={student.province} />
-            <Field label="Postal Code" value={student.postal_code} />
-            <Field label="Country" value={student.country} />
-          </FieldGrid>
+        {/* Student Edit Form */}
+        <Section title="Student Information - Edit">
+          <StudentEditForm student={student} />
         </Section>
 
         {/* Application / Intake Summary */}
@@ -359,7 +315,7 @@ export default async function StudentDetailPage({
           )}
         </Section>
 
-        {/* Admission Checklist Placeholder */}
+        {/* Admission Checklist */}
         <Section title="Admission Checklist">
           {checklists.length === 0 ? (
             <EmptyState message="No admission checklist created yet. This will be available once the application is reviewed." />
@@ -459,10 +415,16 @@ export default async function StudentDetailPage({
                         File Name
                       </th>
                       <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Application
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         Status
                       </th>
                       <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         Uploaded
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Uploaded By
                       </th>
                       <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         Actions
@@ -470,33 +432,46 @@ export default async function StudentDetailPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {documents.map((doc) => (
-                      <tr key={doc.id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-2.5 text-sm text-zinc-900">
-                          {documentTypeLabels[doc.document_type] ?? doc.document_type.replace(/_/g, " ")}
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-zinc-600 max-w-48 truncate">
-                          {doc.file_name}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${documentStatusColors[doc.review_status] ?? "bg-zinc-100 text-zinc-600"}`}>
-                            {documentStatusLabels[doc.review_status] ??
-                              doc.review_status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-zinc-500">
-                          {new Date(doc.created_at).toLocaleDateString("en-CA")}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <Link
-                            href={`/dashboard/documents/${doc.id}`}
-                            className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
-                          >
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
+                    {documents.map((doc) => {
+                      const appInfo = doc.applications as unknown as {
+                        id: string;
+                        status: string;
+                        programs: { id: string; program_code: string; program_name: string } | null;
+                      } | null;
+                      return (
+                        <tr key={doc.id} className="hover:bg-zinc-50">
+                          <td className="px-4 py-2.5 text-sm text-zinc-900">
+                            {documentTypeLabels[doc.document_type] ?? doc.document_type.replace(/_/g, " ")}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-600 max-w-48 truncate">
+                            {doc.file_name}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-600">
+                            {appInfo?.programs?.program_code ?? "--"}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${documentStatusColors[doc.review_status] ?? "bg-zinc-100 text-zinc-600"}`}>
+                              {documentStatusLabels[doc.review_status] ??
+                                doc.review_status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-500">
+                            {new Date(doc.created_at).toLocaleDateString("en-CA")}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-500">
+                            {uploadedByTypeLabels[doc.uploaded_by_type] ?? doc.uploaded_by_type}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Link
+                              href={`/dashboard/documents/${doc.id}`}
+                              className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                            >
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -504,7 +479,7 @@ export default async function StudentDetailPage({
           </div>
         </div>
 
-        {/* Contract Readiness Placeholder */}
+        {/* Contract Readiness */}
         <Section title="Contract Readiness">
           {contracts.length === 0 ? (
             <EmptyState message="No contracts generated yet. Contracts will be created once the application is ready." />
