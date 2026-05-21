@@ -1,7 +1,10 @@
+import Link from "next/link";
+import { Pencil, Eye } from "lucide-react";
 import type { ContractDetailData } from "./actions";
 
 const academicRouteLabels: Record<string, string> = {
-  canadian_secondary: "Canadian Secondary School Diploma (Grade 12 or equivalent)",
+  canadian_secondary:
+    "Canadian Secondary School Diploma (Grade 12 or equivalent)",
   foreign_credential: "Foreign Credential Assessment",
   mature_student: "Mature Student (19 years or older)",
 };
@@ -131,6 +134,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
   const feeSchedule = data.feeSchedule;
   const checklist = data.checklist;
   const installments = data.installments;
+  const applicationId = data.application.id;
 
   const readiness = computeReadinessChecks(data);
   const allReady = readiness.every((r) => r.passed);
@@ -144,8 +148,8 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
 
   return (
     <div className="space-y-6">
-      {/* Readiness Panel */}
-      <div className="rounded-lg border border-zinc-200 bg-white">
+      {/* Readiness Panel - hidden in print */}
+      <div className="no-print rounded-lg border border-zinc-200 bg-white">
         <div className="border-b border-zinc-200 px-6 py-4">
           <h2 className="text-base font-semibold text-zinc-900">
             Contract Readiness
@@ -196,18 +200,12 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
         </div>
       </div>
 
-      {/* Contract Preview Document */}
-      <div className="rounded-lg border border-zinc-200 bg-white">
-        <div className="border-b border-zinc-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-zinc-900">
-            Contract Preview
-          </h2>
-        </div>
-
-        <div className="px-8 py-8 space-y-8">
+      {/* Contract Document - print-ready */}
+      <div className="contract-page mx-auto max-w-[8.5in] rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <div className="px-12 py-10 space-y-6" style={{ fontSize: "13px", lineHeight: "1.5" }}>
           {/* Header with Logo */}
           {headerLogoUrl && (
-            <div className="flex justify-center">
+            <div className="flex justify-center mb-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={headerLogoUrl}
@@ -219,7 +217,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
 
           {/* 1. Student Enrolment Contract Title */}
           <div className="text-center">
-            <h1 className="text-xl font-bold text-zinc-900 uppercase tracking-wide">
+            <h1 className="text-lg font-bold text-zinc-900 uppercase tracking-wide">
               Student Enrolment Contract
             </h1>
             <p className="mt-1 text-sm text-zinc-600">
@@ -230,7 +228,17 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
           <Hr />
 
           {/* 2. Student Information */}
-          <ContractSection title="Student Information">
+          <ContractSection
+            title="Student Information"
+            editLink={
+              student ? (
+                <EditLink
+                  href={`/dashboard/students/${student.id}`}
+                  label="Edit Student"
+                />
+              ) : null
+            }
+          >
             <FieldTable
               rows={[
                 ["Student Number", student?.student_number],
@@ -246,6 +254,8 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                         .join(" ")
                     : null,
                 ],
+                ["Preferred Name", student?.preferred_name],
+                ["Date of Birth", formatDate(student?.date_of_birth)],
                 [
                   "Mailing Address",
                   [
@@ -262,7 +272,6 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                 ["Phone", student?.phone],
                 ["Alternate Phone", student?.alternate_phone],
                 ["Email", student?.email],
-                ["Date of Birth", formatDate(student?.date_of_birth)],
                 [
                   "International Student",
                   student?.international_student != null
@@ -277,7 +286,17 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
           </ContractSection>
 
           {/* 3. Program Information */}
-          <ContractSection title="Program Information">
+          <ContractSection
+            title="Program Information"
+            editLink={
+              batch ? (
+                <EditLink
+                  href={`/dashboard/batches/${batch.id}/edit`}
+                  label="Edit Batch"
+                />
+              ) : null
+            }
+          >
             <FieldTable
               rows={[
                 ["Program Name", program?.program_name],
@@ -301,43 +320,166 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                     ? `${program.practicum_hours} hours`
                     : null,
                 ],
+                ["Batch", batch?.batch_name],
                 ["Start Date", formatDate(batch?.start_date)],
                 [
                   "Expected Completion Date",
                   formatDate(batch?.expected_end_date),
                 ],
-                ["Batch", batch?.batch_name],
                 [
                   "Delivery Method",
                   batch?.delivery_method
                     ? (deliveryMethodLabels[batch.delivery_method] ??
-                      batch.delivery_method)
+                        batch.delivery_method)
                     : null,
                 ],
                 ["Training Location", batch?.training_location],
-                ["Class Days", batch?.class_days],
-                ["Class Time", batch?.class_time],
-                ["Theory Start", formatDate(batch?.theory_start_date)],
-                ["Theory End", formatDate(batch?.theory_end_date)],
-                [
-                  "Practicum Start",
-                  formatDate(batch?.practicum_start_date),
-                ],
-                ["Practicum End", formatDate(batch?.practicum_end_date)],
-                [
-                  "Practicum Location 1",
-                  batch?.practicum_1_location,
-                ],
-                [
-                  "Practicum Location 2",
-                  batch?.practicum_2_location,
-                ],
               ]}
             />
           </ContractSection>
 
-          {/* 4. Academic Requirements */}
-          <ContractSection title="Academic Requirements">
+          {/* 4. Class Schedule */}
+          <ContractSection title="Class Schedule">
+            {batch?.class_days || batch?.class_time || batch?.theory_start_date ? (
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-300">
+                    <th className="py-2 text-left font-medium text-zinc-700">
+                      Detail
+                    </th>
+                    <th className="py-2 text-left font-medium text-zinc-700">
+                      Value
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {batch?.class_days && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Class Days</td>
+                      <td className="py-2 text-zinc-900">{batch.class_days}</td>
+                    </tr>
+                  )}
+                  {batch?.class_time && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Class Time</td>
+                      <td className="py-2 text-zinc-900">{batch.class_time}</td>
+                    </tr>
+                  )}
+                  {batch?.theory_start_date && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Theory Start</td>
+                      <td className="py-2 text-zinc-900">
+                        {formatDate(batch.theory_start_date)}
+                      </td>
+                    </tr>
+                  )}
+                  {batch?.theory_end_date && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Theory End</td>
+                      <td className="py-2 text-zinc-900">
+                        {formatDate(batch.theory_end_date)}
+                      </td>
+                    </tr>
+                  )}
+                  {batch?.delivery_method && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Delivery Method</td>
+                      <td className="py-2 text-zinc-900">
+                        {deliveryMethodLabels[batch.delivery_method] ?? batch.delivery_method}
+                      </td>
+                    </tr>
+                  )}
+                  {batch?.training_location && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Training Location</td>
+                      <td className="py-2 text-zinc-900">{batch.training_location}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-zinc-400 italic">
+                Class schedule details not yet available.
+              </p>
+            )}
+          </ContractSection>
+
+          {/* 5. Practicum Schedule */}
+          <ContractSection title="Practicum Schedule">
+            {batch?.practicum_start_date ||
+            batch?.practicum_1_location ||
+            batch?.practicum_2_location ? (
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-300">
+                    <th className="py-2 text-left font-medium text-zinc-700">
+                      Detail
+                    </th>
+                    <th className="py-2 text-left font-medium text-zinc-700">
+                      Value
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {batch?.practicum_start_date && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Practicum Start</td>
+                      <td className="py-2 text-zinc-900">
+                        {formatDate(batch.practicum_start_date)}
+                      </td>
+                    </tr>
+                  )}
+                  {batch?.practicum_end_date && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Practicum End</td>
+                      <td className="py-2 text-zinc-900">
+                        {formatDate(batch.practicum_end_date)}
+                      </td>
+                    </tr>
+                  )}
+                  {program?.practicum_hours != null && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Practicum Hours</td>
+                      <td className="py-2 text-zinc-900">
+                        {program.practicum_hours} hours
+                      </td>
+                    </tr>
+                  )}
+                  {batch?.practicum_1_location && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Practicum Location 1</td>
+                      <td className="py-2 text-zinc-900">
+                        {batch.practicum_1_location}
+                      </td>
+                    </tr>
+                  )}
+                  {batch?.practicum_2_location && (
+                    <tr>
+                      <td className="py-2 font-medium text-zinc-600">Practicum Location 2</td>
+                      <td className="py-2 text-zinc-900">
+                        {batch.practicum_2_location}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-zinc-400 italic">
+                Practicum schedule details not yet available.
+              </p>
+            )}
+          </ContractSection>
+
+          {/* 6. Academic Requirements */}
+          <ContractSection
+            title="Academic Requirements"
+            editLink={
+              <EditLink
+                href={`/dashboard/checklists/${applicationId}`}
+                label="Edit Checklist"
+              />
+            }
+          >
             <p className="text-sm text-zinc-700 mb-3">
               Students must meet one of the following academic admission
               requirements:
@@ -377,7 +519,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             )}
           </ContractSection>
 
-          {/* 5. English Language Proficiency */}
+          {/* 7. English Language Proficiency */}
           <ContractSection title="English Language Proficiency">
             <p className="text-sm text-zinc-700 mb-3">
               Students whose first language is not English must demonstrate
@@ -422,13 +564,21 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             )}
           </ContractSection>
 
-          {/* 6. Fees */}
-          <ContractSection title="Fees">
+          {/* 8. Fees */}
+          <ContractSection
+            title="Fees"
+            editLink={
+              <EditLink
+                href={`/dashboard/fees/${applicationId}`}
+                label="Edit Fees"
+              />
+            }
+          >
             {feeSchedule ? (
               <>
-                <table className="w-full text-sm">
+                <table className="w-full text-sm border-collapse">
                   <thead>
-                    <tr className="border-b border-zinc-200">
+                    <tr className="border-b border-zinc-300">
                       <th className="py-2 text-left font-medium text-zinc-700">
                         Fee Type
                       </th>
@@ -438,10 +588,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    <FeeRow
-                      label="Tuition"
-                      amount={feeSchedule.tuition_fee}
-                    />
+                    <FeeRow label="Tuition" amount={feeSchedule.tuition_fee} />
                     <FeeRow label="Books" amount={feeSchedule.book_fee} />
                     <FeeRow
                       label="Compulsory Fees"
@@ -515,12 +662,12 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             )}
           </ContractSection>
 
-          {/* 7. Payment Schedule */}
+          {/* 9. Payment Schedule */}
           <ContractSection title="Payment Schedule">
             {installments.length > 0 ? (
-              <table className="w-full text-sm">
+              <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b border-zinc-200">
+                  <tr className="border-b border-zinc-300">
                     <th className="py-2 text-left font-medium text-zinc-700">
                       Installment
                     </th>
@@ -529,6 +676,9 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                     </th>
                     <th className="py-2 text-right font-medium text-zinc-700">
                       Amount
+                    </th>
+                    <th className="py-2 text-left font-medium text-zinc-700 pl-4">
+                      Notes
                     </th>
                   </tr>
                 </thead>
@@ -544,15 +694,15 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                       <td className="py-2 text-right text-zinc-700">
                         {formatCurrency(inst.amount_due)}
                       </td>
+                      <td className="py-2 text-zinc-500 pl-4">
+                        {inst.notes || "--"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-zinc-300">
-                    <td
-                      colSpan={2}
-                      className="py-2 font-semibold text-zinc-900"
-                    >
+                    <td colSpan={2} className="py-2 font-semibold text-zinc-900">
                       Total
                     </td>
                     <td className="py-2 text-right font-semibold text-zinc-900">
@@ -563,6 +713,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
                         )
                       )}
                     </td>
+                    <td />
                   </tr>
                 </tfoot>
               </table>
@@ -573,7 +724,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             )}
           </ContractSection>
 
-          {/* 8. Student Agreement / Signature Placeholders */}
+          {/* 10. Student Agreement / Signature Placeholders */}
           <ContractSection title="Student Agreement">
             <p className="text-sm text-zinc-700 mb-4">
               By signing this contract, I acknowledge that I have read,
@@ -585,13 +736,15 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
               I confirm that the information I have provided is accurate and
               complete.
             </p>
-            <SignatureLine label="Student Signature" />
-            <SignatureLine label="Date" />
-            <SignatureLine label="Institution Representative Signature" />
-            <SignatureLine label="Date" />
+            <div className="grid grid-cols-2 gap-x-12 gap-y-2">
+              <SignatureLine label="Student Signature" />
+              <SignatureLine label="Date" />
+              <SignatureLine label="Institution Representative Signature" />
+              <SignatureLine label="Date" />
+            </div>
           </ContractSection>
 
-          {/* 9. Acknowledgement and Certification */}
+          {/* 11. Acknowledgement and Certification */}
           <ContractSection title="Acknowledgement and Certification">
             <p className="text-sm text-zinc-700 mb-3">
               I certify that the information provided in this application and
@@ -615,7 +768,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 10. Consent to Use of Personal Information */}
+          {/* 12. Consent to Use of Personal Information */}
           <ContractSection title="Consent to Use of Personal Information">
             <p className="text-sm text-zinc-700 mb-3">
               I consent to the collection, use, and disclosure of my personal
@@ -634,7 +787,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 11. Fee Refund Policy */}
+          {/* 13. Fee Refund Policy */}
           <ContractSection title="Fee Refund Policy">
             <p className="text-sm text-zinc-700 mb-3">
               The fee refund policy is governed by the Private Career Colleges
@@ -668,7 +821,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 12. Medical Disclaimer */}
+          {/* 14. Medical Disclaimer */}
           <ContractSection title="Medical Disclaimer">
             <p className="text-sm text-zinc-700 mb-3">
               I understand that Toronto Academy of Education does not provide
@@ -691,7 +844,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 13. Vulnerable Sector Disclaimer */}
+          {/* 15. Vulnerable Sector Disclaimer */}
           <ContractSection title="Vulnerable Sector Disclaimer">
             <p className="text-sm text-zinc-700 mb-3">
               I understand that certain programs require a Vulnerable Sector
@@ -705,8 +858,8 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
               </li>
               <li>
                 An unsatisfactory result may prevent me from completing the
-                practicum component of my program, which may affect my ability
-                to graduate
+                practicum component of my program, which may affect my ability to
+                graduate
               </li>
               <li>
                 The institution is not responsible for any inability to complete
@@ -717,7 +870,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 14. Practicum Placement Disclaimer and Acknowledgement */}
+          {/* 16. Practicum Placement Disclaimer and Acknowledgement */}
           <ContractSection title="Practicum Placement Disclaimer and Acknowledgement">
             <p className="text-sm text-zinc-700 mb-3">
               I understand and acknowledge the following regarding practicum
@@ -726,17 +879,15 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
               <li>
                 Practicum placements are arranged by the institution, but
-                availability depends on placement partner capacity and
-                scheduling
+                availability depends on placement partner capacity and scheduling
               </li>
               <li>
                 I may be required to travel to a practicum location and am
                 responsible for my own transportation and related costs
               </li>
               <li>
-                Practicum sites may have additional requirements including
-                dress codes, health screenings, and professional conduct
-                expectations
+                Practicum sites may have additional requirements including dress
+                codes, health screenings, and professional conduct expectations
               </li>
               <li>
                 I agree to abide by all rules, regulations, and policies of the
@@ -751,7 +902,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 15. Student Immigration Status Acknowledgement */}
+          {/* 17. Student Immigration Status Acknowledgement */}
           <ContractSection title="Student Immigration Status Acknowledgement">
             <p className="text-sm text-zinc-700 mb-3">
               I acknowledge that it is my responsibility to maintain valid
@@ -760,15 +911,15 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             </p>
             <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
               <li>
-                Maintaining a valid study permit (if applicable) for the
-                duration of my program
+                Maintaining a valid study permit (if applicable) for the duration
+                of my program
               </li>
               <li>
                 Ensuring my passport remains valid throughout my studies
               </li>
               <li>
-                Reporting any changes to my immigration status to the
-                institution promptly
+                Reporting any changes to my immigration status to the institution
+                promptly
               </li>
               <li>
                 Complying with all conditions of my study permit and applicable
@@ -784,7 +935,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 16. Photography and Videography Consent Form */}
+          {/* 18. Photography and Videography Consent Form */}
           <ContractSection title="Photography and Videography Consent Form">
             <p className="text-sm text-zinc-700 mb-3">
               I grant Toronto Academy of Education permission to use
@@ -804,22 +955,32 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
               materials already produced prior to the withdrawal of consent may
               continue to be used.
             </p>
-            <div className="flex gap-8 text-sm text-zinc-700 mb-4">
-              <label className="flex items-center gap-2">
+            <div className="flex gap-8 text-sm text-zinc-700 mb-6">
+              <span className="flex items-center gap-2">
                 <span className="inline-block h-4 w-4 border border-zinc-400" />
                 I consent
-              </label>
-              <label className="flex items-center gap-2">
+              </span>
+              <span className="flex items-center gap-2">
                 <span className="inline-block h-4 w-4 border border-zinc-400" />
                 I do not consent
-              </label>
+              </span>
             </div>
             <SignatureLine label="Student Signature" />
             <SignatureLine label="Date" />
           </ContractSection>
 
-          {/* 17. Footer / Contact Area */}
+          {/* 19. Footer / Contact Area */}
           <Hr />
+
+          {/* Documents link - screen only */}
+          <div className="no-print">
+            <EditLink
+              href="/dashboard/documents"
+              label="View Documents"
+              icon="view"
+            />
+          </div>
+
           <div className="text-center text-sm text-zinc-600 space-y-2">
             <p className="font-semibold">Toronto Academy of Education</p>
             <p>
@@ -859,18 +1020,42 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
 
 function ContractSection({
   title,
+  editLink,
   children,
 }: {
   title: string;
+  editLink?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <h3 className="mb-3 text-base font-semibold text-zinc-900 border-b border-zinc-200 pb-2">
-        {title}
-      </h3>
+    <div className="contract-section">
+      <div className="flex items-center justify-between border-b border-zinc-300 pb-2 mb-3">
+        <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
+        {editLink && <div className="no-print">{editLink}</div>}
+      </div>
       {children}
     </div>
+  );
+}
+
+function EditLink({
+  href,
+  label,
+  icon = "edit",
+}: {
+  href: string;
+  label: string;
+  icon?: "edit" | "view";
+}) {
+  const Icon = icon === "view" ? Eye : Pencil;
+  return (
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </Link>
   );
 }
 
