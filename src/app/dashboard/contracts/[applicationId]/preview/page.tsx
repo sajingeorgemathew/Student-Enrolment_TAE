@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getContractDetail } from "@/features/contracts/actions";
 import { ContractPreview } from "@/features/contracts/contract-preview";
+import { PrintButton } from "@/features/contracts/print-button";
 
 export default async function ContractPreviewPage({
   params,
@@ -21,7 +22,7 @@ export default async function ContractPreviewPage({
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="no-print mb-8">
         <Link
           href="/dashboard/contracts"
           className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700"
@@ -41,11 +42,14 @@ export default async function ContractPreviewPage({
               {program ? ` - ${program.program_name}` : ""}
             </p>
           </div>
-          {data.contract && (
-            <span className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">
-              {data.contract.status}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {data.contract && (
+              <span className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700">
+                {data.contract.status}
+              </span>
+            )}
+            <PrintButton />
+          </div>
         </div>
       </div>
 

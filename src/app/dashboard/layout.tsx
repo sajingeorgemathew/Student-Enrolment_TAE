@@ -20,14 +20,16 @@ export default async function DashboardLayout({
   const profile = await getUserProfile();
 
   return (
-    <div className="flex h-screen bg-zinc-50">
-      <Sidebar
-        userEmail={user.email ?? ""}
-        userRole={profile?.role ?? null}
-        userFullName={profile?.full_name ?? null}
-      />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+    <div className="flex h-screen bg-zinc-50 print:block print:h-auto print:bg-white">
+      <div className="no-print">
+        <Sidebar
+          userEmail={user.email ?? ""}
+          userRole={profile?.role ?? null}
+          userFullName={profile?.full_name ?? null}
+        />
+      </div>
+      <main className="flex-1 overflow-y-auto print:overflow-visible">
+        <div className="mx-auto max-w-7xl px-6 py-8 print:max-w-none print:px-0 print:py-0">
           {!profile && <ProfileMissingBanner />}
           {children}
         </div>
