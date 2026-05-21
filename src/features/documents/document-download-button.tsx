@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { getDocumentSignedUrl } from "@/features/documents/actions";
 import { Download } from "lucide-react";
 
 interface Props {
@@ -18,15 +17,9 @@ export function DocumentDownloadButton({ bucket, storagePath, fileName }: Props)
     setLoading(true);
     setError(null);
 
-    const result = await getDocumentSignedUrl(bucket, storagePath);
-    if (result.error || !result.url) {
-      setError(result.error ?? "Download failed.");
-      setLoading(false);
-      return;
-    }
-
+    const params = new URLSearchParams({ bucket, path: storagePath, fileName });
     const link = document.createElement("a");
-    link.href = result.url;
+    link.href = `/api/documents/download?${params.toString()}`;
     link.download = fileName;
     link.click();
     setLoading(false);

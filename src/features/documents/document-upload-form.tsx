@@ -22,6 +22,8 @@ interface Application {
 
 interface Props {
   students: Student[];
+  defaultStudentId?: string;
+  initialApplications?: Application[];
 }
 
 const documentTypeOptions = [
@@ -33,6 +35,12 @@ const documentTypeOptions = [
   { value: "english_test", label: "English Test" },
   { value: "immigration_status", label: "Immigration Status" },
   { value: "payment_proof", label: "Payment Proof" },
+  { value: "placement_document", label: "Placement Document" },
+  { value: "plar", label: "PLAR" },
+  { value: "readmission", label: "Readmission" },
+  { value: "withdrawal", label: "Withdrawal" },
+  { value: "transcript_moodle_export", label: "Transcript / Moodle Export" },
+  { value: "contract_document", label: "Contract Document" },
   { value: "other", label: "Other" },
 ];
 
@@ -40,9 +48,9 @@ const allowedExtensions = ".pdf,.jpg,.jpeg,.png,.docx";
 
 const initialState: DocumentFormState = { success: false };
 
-export function DocumentUploadForm({ students }: Props) {
+export function DocumentUploadForm({ students, defaultStudentId, initialApplications }: Props) {
   const [state, formAction, isPending] = useActionState(uploadDocument, initialState);
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [applications, setApplications] = useState<Application[]>(initialApplications ?? []);
   const [loadingApps, startLoadApps] = useTransition();
   const router = useRouter();
 
@@ -88,6 +96,7 @@ export function DocumentUploadForm({ students }: Props) {
           id="student_id"
           name="student_id"
           required
+          defaultValue={defaultStudentId ?? ""}
           onChange={handleStudentChange}
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 focus:outline-none"
         >

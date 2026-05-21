@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getDocumentDetail } from "@/features/documents/actions";
 import { DocumentReviewForm } from "@/features/documents/document-review-form";
-import { DocumentDownloadButton } from "@/features/documents/document-download-button";
+import { DocumentPreview } from "@/features/documents/document-preview";
 import { getUserProfile } from "@/lib/profile";
 
 const reviewStatusLabels: Record<string, string> = {
@@ -28,6 +28,12 @@ const documentTypeLabels: Record<string, string> = {
   english_test: "English Test",
   immigration_status: "Immigration Status",
   payment_proof: "Payment Proof",
+  placement_document: "Placement Document",
+  plar: "PLAR",
+  readmission: "Readmission",
+  withdrawal: "Withdrawal",
+  transcript_moodle_export: "Transcript / Moodle Export",
+  contract_document: "Contract Document",
   other: "Other",
 };
 
@@ -172,7 +178,7 @@ export default async function DocumentDetailPage({
             />
           </FieldGrid>
           <div className="mt-4">
-            <DocumentDownloadButton
+            <DocumentPreview
               bucket={doc.storage_bucket}
               storagePath={doc.storage_path}
               fileName={doc.file_name}
