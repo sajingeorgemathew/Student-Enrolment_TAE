@@ -31,6 +31,7 @@ body {
     color: black !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    font-size: 11px !important;
   }
 
   .no-print {
@@ -50,12 +51,16 @@ body {
     border-radius: 0 !important;
   }
 
-  .contract-section {
+  .contract-section-break {
+    break-before: page;
+  }
+
+  table {
     break-inside: avoid;
   }
 
   @page {
     size: letter;
-    margin: 0.75in;
+    margin: 0.6in 0.75in;
   }
 }
