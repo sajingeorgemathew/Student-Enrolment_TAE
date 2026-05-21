@@ -9,51 +9,35 @@ const academicRouteLabels: Record<string, string> = {
   mature_student: "Mature Student (19 years or older)",
 };
 
-const englishRouteLabels: Record<string, string> = {
-  ielts: "IELTS",
-  toefl_ibt: "TOEFL iBT",
-  cael: "CAEL",
-  celpip: "CELPIP",
-  clb: "CLB",
-  duolingo: "Duolingo English Test",
-  pte_academic: "PTE Academic",
-  nacc_written_exam: "NACC Written Exam",
-  two_years_canadian_postsecondary_english:
-    "Completion of 2 years Canadian post-secondary education taught in English",
-  two_years_international_postsecondary_english:
-    "Completion of 2 years international post-secondary education taught in English",
-  not_required: "Not Required",
-};
-
-const englishStatusLabels: Record<string, string> = {
-  not_started: "Not Started",
-  in_review: "In Review",
-  accepted: "Accepted",
-  needs_correction: "Needs Correction",
-};
-
-const deliveryMethodLabels: Record<string, string> = {
-  in_person: "In Person",
-  hybrid: "Hybrid",
-  online: "Online",
-};
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "--";
+function formatDateShort(dateStr: string | null | undefined): string {
+  if (!dateStr) return "____/____/________";
   const d = new Date(dateStr + "T00:00:00");
-  return d.toLocaleDateString("en-CA", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatCurrencyPlain(amount: number | null | undefined): string {
+  if (amount == null) return "___________";
+  return Number(amount).toLocaleString("en-CA", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   });
 }
 
-function formatCurrency(amount: number | null | undefined): string {
-  if (amount == null) return "--";
-  return `$${Number(amount).toLocaleString("en-CA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function studentFullName(
+  student: ContractDetailData["application"]["students"]
+): string {
+  if (!student) return "________________________";
+  return [
+    student.legal_first_name,
+    student.legal_middle_name,
+    student.legal_last_name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toUpperCase();
 }
 
 type ReadinessCheck = {
@@ -146,6 +130,10 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
   const footerRightUrl =
     process.env.NEXT_PUBLIC_CONTRACT_FOOTER_RIGHT_IMAGE_URL || null;
 
+  const fullName = studentFullName(student);
+  const programName = program?.program_name || "________________________";
+  const enrolmentDate = formatDateShort(data.application.created_at);
+
   return (
     <div className="space-y-6">
       {/* Readiness Panel - hidden in print */}
@@ -200,9 +188,39 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
         </div>
       </div>
 
+      {/* Source Edit Links - screen only */}
+      <div className="no-print flex flex-wrap gap-3">
+        {student && (
+          <EditLink
+            href={`/dashboard/students/${student.id}`}
+            label="Edit Student"
+          />
+        )}
+        {batch && (
+          <EditLink
+            href={`/dashboard/batches/${batch.id}/edit`}
+            label="Edit Batch"
+          />
+        )}
+        <EditLink
+          href={`/dashboard/fees/${applicationId}`}
+          label="Edit Fees"
+        />
+        <EditLink
+          href={`/dashboard/checklists/${applicationId}`}
+          label="Edit Checklist"
+        />
+        <EditLink
+          href="/dashboard/documents"
+          label="View Documents"
+          icon="view"
+        />
+      </div>
+
       {/* Contract Document - print-ready */}
-      <div className="contract-page mx-auto max-w-[8.5in] rounded-lg border border-zinc-200 bg-white shadow-sm">
-        <div className="px-12 py-10 space-y-6" style={{ fontSize: "13px", lineHeight: "1.5" }}>
+      <div className="contract-page mx-auto max-w-[8.5in] rounded-lg border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">
+        <div className="px-10 py-8 space-y-5" style={{ fontSize: "12px", lineHeight: "1.5", fontFamily: "Arial, Helvetica, sans-serif" }}>
+
           {/* Header with Logo */}
           {headerLogoUrl && (
             <div className="flex justify-center mb-2">
@@ -215,777 +233,856 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             </div>
           )}
 
-          {/* 1. Student Enrolment Contract Title */}
+          {/* ==================== */}
+          {/* 1. Title */}
+          {/* ==================== */}
           <div className="text-center">
-            <h1 className="text-lg font-bold text-zinc-900 uppercase tracking-wide">
+            <p className="text-base font-bold uppercase">
               Student Enrolment Contract
-            </h1>
-            <p className="mt-1 text-sm text-zinc-600">
-              Toronto Academy of Education
+            </p>
+            <p className="mt-1 text-xs font-bold">
+              This Enrolment Contract is subject to the Ontario Career Colleges Act, 2005 and
+            </p>
+            <p className="text-xs font-bold">
+              the regulations made under the Act.
             </p>
           </div>
 
-          <Hr />
+          {/* ==================== */}
+          {/* 2. Opening Paragraph */}
+          {/* ==================== */}
+          <p>
+            The undersigned person hereby enrols as a student of{" "}
+            <strong>13899667 CANADA INC</strong>. operating as{" "}
+            <strong>Toronto Academy of Education</strong> as of{" "}
+            <strong>{enrolmentDate}</strong>{" "}
+            [*Date: DD/MM/YYYY format to be used] for the following:
+          </p>
 
-          {/* 2. Student Information */}
-          <ContractSection
-            title="Student Information"
-            editLink={
-              student ? (
-                <EditLink
-                  href={`/dashboard/students/${student.id}`}
-                  label="Edit Student"
-                />
-              ) : null
-            }
-          >
-            <FieldTable
-              rows={[
-                ["Student Number", student?.student_number],
-                [
-                  "Legal Name",
-                  student
-                    ? [
-                        student.legal_first_name,
-                        student.legal_middle_name,
-                        student.legal_last_name,
-                      ]
-                        .filter(Boolean)
-                        .join(" ")
-                    : null,
-                ],
-                ["Preferred Name", student?.preferred_name],
-                ["Date of Birth", formatDate(student?.date_of_birth)],
-                [
-                  "Mailing Address",
-                  [
-                    student?.mailing_address_line_1,
-                    student?.mailing_address_line_2,
-                  ]
-                    .filter(Boolean)
-                    .join(", ") || null,
-                ],
-                ["City", student?.city],
-                ["Province", student?.province],
-                ["Postal Code", student?.postal_code],
-                ["Country", student?.country],
-                ["Phone", student?.phone],
-                ["Alternate Phone", student?.alternate_phone],
-                ["Email", student?.email],
-                [
-                  "International Student",
-                  student?.international_student != null
-                    ? student.international_student
-                      ? "Yes"
-                      : "No"
-                    : null,
-                ],
-                ["Immigration Status", student?.immigration_status],
-              ]}
-            />
-          </ContractSection>
-
-          {/* 3. Program Information */}
-          <ContractSection
-            title="Program Information"
-            editLink={
-              batch ? (
-                <EditLink
-                  href={`/dashboard/batches/${batch.id}/edit`}
-                  label="Edit Batch"
-                />
-              ) : null
-            }
-          >
-            <FieldTable
-              rows={[
-                ["Program Name", program?.program_name],
-                ["Program Code", program?.program_code],
-                ["Credential", program?.credential_name],
-                [
-                  "Total Program Hours",
-                  program?.total_hours != null
-                    ? `${program.total_hours} hours`
-                    : null,
-                ],
-                [
-                  "Theory Hours",
-                  program?.theory_hours != null
-                    ? `${program.theory_hours} hours`
-                    : null,
-                ],
-                [
-                  "Practicum Hours",
-                  program?.practicum_hours != null
-                    ? `${program.practicum_hours} hours`
-                    : null,
-                ],
-                ["Batch", batch?.batch_name],
-                ["Start Date", formatDate(batch?.start_date)],
-                [
-                  "Expected Completion Date",
-                  formatDate(batch?.expected_end_date),
-                ],
-                [
-                  "Delivery Method",
-                  batch?.delivery_method
-                    ? (deliveryMethodLabels[batch.delivery_method] ??
-                        batch.delivery_method)
-                    : null,
-                ],
-                ["Training Location", batch?.training_location],
-              ]}
-            />
-          </ContractSection>
-
-          {/* 4. Class Schedule */}
-          <ContractSection title="Class Schedule">
-            {batch?.class_days || batch?.class_time || batch?.theory_start_date ? (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-300">
-                    <th className="py-2 text-left font-medium text-zinc-700">
-                      Detail
-                    </th>
-                    <th className="py-2 text-left font-medium text-zinc-700">
-                      Value
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {batch?.class_days && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Class Days</td>
-                      <td className="py-2 text-zinc-900">{batch.class_days}</td>
-                    </tr>
-                  )}
-                  {batch?.class_time && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Class Time</td>
-                      <td className="py-2 text-zinc-900">{batch.class_time}</td>
-                    </tr>
-                  )}
-                  {batch?.theory_start_date && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Theory Start</td>
-                      <td className="py-2 text-zinc-900">
-                        {formatDate(batch.theory_start_date)}
-                      </td>
-                    </tr>
-                  )}
-                  {batch?.theory_end_date && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Theory End</td>
-                      <td className="py-2 text-zinc-900">
-                        {formatDate(batch.theory_end_date)}
-                      </td>
-                    </tr>
-                  )}
-                  {batch?.delivery_method && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Delivery Method</td>
-                      <td className="py-2 text-zinc-900">
-                        {deliveryMethodLabels[batch.delivery_method] ?? batch.delivery_method}
-                      </td>
-                    </tr>
-                  )}
-                  {batch?.training_location && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Training Location</td>
-                      <td className="py-2 text-zinc-900">{batch.training_location}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-sm text-zinc-400 italic">
-                Class schedule details not yet available.
-              </p>
-            )}
-          </ContractSection>
-
-          {/* 5. Practicum Schedule */}
-          <ContractSection title="Practicum Schedule">
-            {batch?.practicum_start_date ||
-            batch?.practicum_1_location ||
-            batch?.practicum_2_location ? (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-300">
-                    <th className="py-2 text-left font-medium text-zinc-700">
-                      Detail
-                    </th>
-                    <th className="py-2 text-left font-medium text-zinc-700">
-                      Value
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {batch?.practicum_start_date && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Practicum Start</td>
-                      <td className="py-2 text-zinc-900">
-                        {formatDate(batch.practicum_start_date)}
-                      </td>
-                    </tr>
-                  )}
-                  {batch?.practicum_end_date && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Practicum End</td>
-                      <td className="py-2 text-zinc-900">
-                        {formatDate(batch.practicum_end_date)}
-                      </td>
-                    </tr>
-                  )}
-                  {program?.practicum_hours != null && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Practicum Hours</td>
-                      <td className="py-2 text-zinc-900">
-                        {program.practicum_hours} hours
-                      </td>
-                    </tr>
-                  )}
-                  {batch?.practicum_1_location && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Practicum Location 1</td>
-                      <td className="py-2 text-zinc-900">
-                        {batch.practicum_1_location}
-                      </td>
-                    </tr>
-                  )}
-                  {batch?.practicum_2_location && (
-                    <tr>
-                      <td className="py-2 font-medium text-zinc-600">Practicum Location 2</td>
-                      <td className="py-2 text-zinc-900">
-                        {batch.practicum_2_location}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-sm text-zinc-400 italic">
-                Practicum schedule details not yet available.
-              </p>
-            )}
-          </ContractSection>
-
-          {/* 6. Academic Requirements */}
-          <ContractSection
-            title="Academic Requirements"
-            editLink={
-              <EditLink
-                href={`/dashboard/checklists/${applicationId}`}
-                label="Edit Checklist"
-              />
-            }
-          >
-            <p className="text-sm text-zinc-700 mb-3">
-              Students must meet one of the following academic admission
-              requirements:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>
-                An Ontario Secondary School Diploma (OSSD) or equivalent, or
-                equivalent standing from outside Ontario at the postsecondary
-                level
-              </li>
-              <li>
-                A foreign credential assessment showing equivalence to a
-                Canadian secondary school diploma
-              </li>
-              <li>
-                Mature Student status: 19 years of age or older at the start of
-                the program and may be accepted on an individual basis
-              </li>
-            </ul>
-            {checklist?.academic_route && (
-              <FieldTable
-                rows={[
-                  [
-                    "Academic Route",
-                    academicRouteLabels[checklist.academic_route] ??
-                      checklist.academic_route,
-                  ],
-                  ["Academic Status", checklist.academic_status],
-                  ["Notes", checklist.academic_notes],
-                ]}
-              />
-            )}
-            {!checklist?.academic_route && (
-              <p className="text-sm text-zinc-400 italic">
-                Academic route not yet determined.
-              </p>
-            )}
-          </ContractSection>
-
-          {/* 7. English Language Proficiency */}
-          <ContractSection title="English Language Proficiency">
-            <p className="text-sm text-zinc-700 mb-3">
-              Students whose first language is not English must demonstrate
-              English language proficiency through one of the following:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>IELTS - minimum overall score as required by the program</li>
-              <li>TOEFL iBT - minimum overall score as required</li>
-              <li>CAEL - minimum score as required</li>
-              <li>CELPIP - minimum score as required</li>
-              <li>CLB - minimum level as required</li>
-              <li>Duolingo English Test - minimum score as required</li>
-              <li>PTE Academic - minimum score as required</li>
-              <li>NACC Written Exam - passing score</li>
-              <li>
-                Completion of 2 years of post-secondary education taught in
-                English
-              </li>
-            </ul>
-            {checklist?.english_route && (
-              <FieldTable
-                rows={[
-                  [
-                    "English Route",
-                    englishRouteLabels[checklist.english_route] ??
-                      checklist.english_route,
-                  ],
-                  [
-                    "English Status",
-                    englishStatusLabels[checklist.english_status] ??
-                      checklist.english_status,
-                  ],
-                  ["Score", checklist.english_score],
-                  ["Notes", checklist.english_notes],
-                ]}
-              />
-            )}
-            {!checklist?.english_route && (
-              <p className="text-sm text-zinc-400 italic">
-                English proficiency route not yet determined.
-              </p>
-            )}
-          </ContractSection>
-
-          {/* 8. Fees */}
-          <ContractSection
-            title="Fees"
-            editLink={
-              <EditLink
-                href={`/dashboard/fees/${applicationId}`}
-                label="Edit Fees"
-              />
-            }
-          >
-            {feeSchedule ? (
-              <>
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b border-zinc-300">
-                      <th className="py-2 text-left font-medium text-zinc-700">
-                        Fee Type
-                      </th>
-                      <th className="py-2 text-right font-medium text-zinc-700">
-                        Amount
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    <FeeRow label="Tuition" amount={feeSchedule.tuition_fee} />
-                    <FeeRow label="Books" amount={feeSchedule.book_fee} />
-                    <FeeRow
-                      label="Compulsory Fees"
-                      amount={feeSchedule.compulsory_fee}
-                    />
-                    <FeeRow
-                      label="Field Trip Fee"
-                      amount={feeSchedule.field_trip_fee}
-                    />
-                    <FeeRow
-                      label="Uniform / Equipment"
-                      amount={feeSchedule.uniform_equipment_fee}
-                    />
-                    <FeeRow
-                      label="Professional Exam Fee"
-                      amount={feeSchedule.professional_exam_fee}
-                    />
-                    <FeeRow
-                      label="Expendable Supplies"
-                      amount={feeSchedule.expendable_supplies_fee}
-                    />
-                    <FeeRow
-                      label="International Fee"
-                      amount={feeSchedule.international_fee}
-                    />
-                    <FeeRow
-                      label="Optional Fee"
-                      amount={feeSchedule.optional_fee}
-                    />
-                    {Number(feeSchedule.discount_amount) > 0 && (
-                      <FeeRow
-                        label="Discount"
-                        amount={-Number(feeSchedule.discount_amount)}
-                      />
-                    )}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-zinc-300">
-                      <td className="py-2 font-semibold text-zinc-900">
-                        Total Fees
-                      </td>
-                      <td className="py-2 text-right font-semibold text-zinc-900">
-                        {formatCurrency(feeSchedule.total_fees)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-                <div className="mt-4">
-                  <FieldTable
-                    rows={[
-                      [
-                        "Payment Before Signing",
-                        formatCurrency(feeSchedule.payment_before_signing),
-                      ],
-                      [
-                        "Payment After Signing",
-                        formatCurrency(feeSchedule.payment_after_signing),
-                      ],
-                      [
-                        "Remaining Balance",
-                        formatCurrency(feeSchedule.remaining_balance),
-                      ],
-                    ]}
-                  />
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-zinc-400 italic">
-                No fee schedule created for this application.
-              </p>
-            )}
-          </ContractSection>
-
-          {/* 9. Payment Schedule */}
-          <ContractSection title="Payment Schedule">
-            {installments.length > 0 ? (
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b border-zinc-300">
-                    <th className="py-2 text-left font-medium text-zinc-700">
-                      Installment
-                    </th>
-                    <th className="py-2 text-left font-medium text-zinc-700">
-                      Due Date
-                    </th>
-                    <th className="py-2 text-right font-medium text-zinc-700">
-                      Amount
-                    </th>
-                    <th className="py-2 text-left font-medium text-zinc-700 pl-4">
-                      Notes
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {installments.map((inst) => (
-                    <tr key={inst.id}>
-                      <td className="py-2 text-zinc-700">
-                        {inst.installment_number}
-                      </td>
-                      <td className="py-2 text-zinc-700">
-                        {formatDate(inst.due_date)}
-                      </td>
-                      <td className="py-2 text-right text-zinc-700">
-                        {formatCurrency(inst.amount_due)}
-                      </td>
-                      <td className="py-2 text-zinc-500 pl-4">
-                        {inst.notes || "--"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-zinc-300">
-                    <td colSpan={2} className="py-2 font-semibold text-zinc-900">
-                      Total
-                    </td>
-                    <td className="py-2 text-right font-semibold text-zinc-900">
-                      {formatCurrency(
-                        installments.reduce(
-                          (sum, inst) => sum + Number(inst.amount_due),
-                          0
-                        )
-                      )}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            ) : (
-              <p className="text-sm text-zinc-400 italic">
-                No payment installments configured.
-              </p>
-            )}
-          </ContractSection>
-
-          {/* 10. Student Agreement / Signature Placeholders */}
-          <ContractSection title="Student Agreement">
-            <p className="text-sm text-zinc-700 mb-4">
-              By signing this contract, I acknowledge that I have read,
-              understood, and agree to all the terms and conditions outlined in
-              this Student Enrolment Contract, including the fee schedule,
-              payment plan, refund policy, and all institutional policies.
-            </p>
-            <p className="text-sm text-zinc-700 mb-6">
-              I confirm that the information I have provided is accurate and
-              complete.
-            </p>
-            <div className="grid grid-cols-2 gap-x-12 gap-y-2">
-              <SignatureLine label="Student Signature" />
-              <SignatureLine label="Date" />
-              <SignatureLine label="Institution Representative Signature" />
-              <SignatureLine label="Date" />
-            </div>
-          </ContractSection>
-
-          {/* 11. Acknowledgement and Certification */}
-          <ContractSection title="Acknowledgement and Certification">
-            <p className="text-sm text-zinc-700 mb-3">
-              I certify that the information provided in this application and
-              enrolment contract is true and complete. I understand that
-              providing false or misleading information may result in the
-              cancellation of my enrolment and/or dismissal from the program.
-            </p>
-            <p className="text-sm text-zinc-700 mb-3">
-              I acknowledge that I have received, read, and understood the
-              institutional policies, including but not limited to:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>Student Code of Conduct</li>
-              <li>Academic Integrity Policy</li>
-              <li>Attendance Policy</li>
-              <li>Dispute Resolution and Complaints Policy</li>
-              <li>Fee Refund Policy</li>
-              <li>Privacy Policy</li>
-            </ul>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 12. Consent to Use of Personal Information */}
-          <ContractSection title="Consent to Use of Personal Information">
-            <p className="text-sm text-zinc-700 mb-3">
-              I consent to the collection, use, and disclosure of my personal
-              information by Toronto Academy of Education for the purposes of
-              administering my enrolment, academic progress, and credential
-              issuance. Personal information may be shared with regulatory
-              bodies, practicum placement partners, and government agencies as
-              required by law or for the administration of my program.
-            </p>
-            <p className="text-sm text-zinc-700 mb-4">
-              I understand that my personal information will be handled in
-              accordance with applicable privacy legislation and the
-              institution&apos;s Privacy Policy.
-            </p>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 13. Fee Refund Policy */}
-          <ContractSection title="Fee Refund Policy">
-            <p className="text-sm text-zinc-700 mb-3">
-              The fee refund policy is governed by the Private Career Colleges
-              Act, 2005 and the institution&apos;s published refund schedule. Key
-              refund provisions include:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>
-                Full refund of tuition (less registration fee) if the student
-                withdraws before the program start date or within the cooling-off
-                period as defined by the Act
-              </li>
-              <li>
-                Partial refund based on the percentage of the program completed
-                at the time of withdrawal, as set out in the refund schedule
-              </li>
-              <li>
-                No refund is provided after the student has completed more than
-                the applicable threshold of the program
-              </li>
-              <li>
-                Registration fees and non-refundable fees are not subject to
-                refund
-              </li>
-            </ul>
-            <p className="text-sm text-zinc-700 mb-4">
-              Please refer to the institution&apos;s detailed Fee Refund Policy
-              document for the complete refund schedule and conditions.
-            </p>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 14. Medical Disclaimer */}
-          <ContractSection title="Medical Disclaimer">
-            <p className="text-sm text-zinc-700 mb-3">
-              I understand that Toronto Academy of Education does not provide
-              medical, dental, or extended health benefits. Students are
-              responsible for maintaining their own health insurance coverage
-              throughout the duration of their program.
-            </p>
-            <p className="text-sm text-zinc-700 mb-3">
-              International students are required to have valid medical
-              insurance coverage for the entire duration of their studies in
-              Canada.
-            </p>
-            <p className="text-sm text-zinc-700 mb-4">
-              I acknowledge that certain programs may require physical fitness,
-              immunizations, or health clearances as a condition of participation
-              in practicum placements. I agree to comply with all such
-              requirements at my own expense.
-            </p>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 15. Vulnerable Sector Disclaimer */}
-          <ContractSection title="Vulnerable Sector Disclaimer">
-            <p className="text-sm text-zinc-700 mb-3">
-              I understand that certain programs require a Vulnerable Sector
-              Check (VSC) or Police Record Check as a condition of practicum
-              placement. I acknowledge that:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>
-                I am responsible for obtaining and paying for the required
-                background check
-              </li>
-              <li>
-                An unsatisfactory result may prevent me from completing the
-                practicum component of my program, which may affect my ability to
-                graduate
-              </li>
-              <li>
-                The institution is not responsible for any inability to complete
-                the program due to an unsatisfactory background check result
-              </li>
-            </ul>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 16. Practicum Placement Disclaimer and Acknowledgement */}
-          <ContractSection title="Practicum Placement Disclaimer and Acknowledgement">
-            <p className="text-sm text-zinc-700 mb-3">
-              I understand and acknowledge the following regarding practicum
-              placements:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>
-                Practicum placements are arranged by the institution, but
-                availability depends on placement partner capacity and scheduling
-              </li>
-              <li>
-                I may be required to travel to a practicum location and am
-                responsible for my own transportation and related costs
-              </li>
-              <li>
-                Practicum sites may have additional requirements including dress
-                codes, health screenings, and professional conduct expectations
-              </li>
-              <li>
-                I agree to abide by all rules, regulations, and policies of the
-                practicum placement site
-              </li>
-              <li>
-                The institution reserves the right to reassign practicum
-                placements if necessary
-              </li>
-            </ul>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 17. Student Immigration Status Acknowledgement */}
-          <ContractSection title="Student Immigration Status Acknowledgement">
-            <p className="text-sm text-zinc-700 mb-3">
-              I acknowledge that it is my responsibility to maintain valid
-              immigration status in Canada throughout the duration of my program.
-              This includes but is not limited to:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>
-                Maintaining a valid study permit (if applicable) for the duration
-                of my program
-              </li>
-              <li>
-                Ensuring my passport remains valid throughout my studies
-              </li>
-              <li>
-                Reporting any changes to my immigration status to the institution
-                promptly
-              </li>
-              <li>
-                Complying with all conditions of my study permit and applicable
-                immigration regulations
-              </li>
-            </ul>
-            <p className="text-sm text-zinc-700 mb-4">
-              I understand that the institution is not responsible for any
-              immigration-related issues, including the denial, revocation, or
-              expiration of a study permit.
-            </p>
-            <SignatureLine label="Student Initials" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 18. Photography and Videography Consent Form */}
-          <ContractSection title="Photography and Videography Consent Form">
-            <p className="text-sm text-zinc-700 mb-3">
-              I grant Toronto Academy of Education permission to use
-              photographs, video recordings, and audio recordings of me taken
-              during my participation in institutional programs, events, and
-              activities for the following purposes:
-            </p>
-            <ul className="list-disc pl-6 text-sm text-zinc-700 space-y-1 mb-4">
-              <li>Promotional materials (print and digital)</li>
-              <li>Social media and website content</li>
-              <li>Institutional publications and newsletters</li>
-              <li>Recruitment and marketing purposes</li>
-            </ul>
-            <p className="text-sm text-zinc-700 mb-4">
-              I understand that I may withdraw this consent at any time by
-              providing written notice to the institution. I understand that any
-              materials already produced prior to the withdrawal of consent may
-              continue to be used.
-            </p>
-            <div className="flex gap-8 text-sm text-zinc-700 mb-6">
-              <span className="flex items-center gap-2">
-                <span className="inline-block h-4 w-4 border border-zinc-400" />
-                I consent
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="inline-block h-4 w-4 border border-zinc-400" />
-                I do not consent
-              </span>
-            </div>
-            <SignatureLine label="Student Signature" />
-            <SignatureLine label="Date" />
-          </ContractSection>
-
-          {/* 19. Footer / Contact Area */}
-          <Hr />
-
-          {/* Documents link - screen only */}
-          <div className="no-print">
-            <EditLink
-              href="/dashboard/documents"
-              label="View Documents"
-              icon="view"
-            />
-          </div>
-
-          <div className="text-center text-sm text-zinc-600 space-y-2">
-            <p className="font-semibold">Toronto Academy of Education</p>
+          {/* ==================== */}
+          {/* 3. Student Information */}
+          {/* ==================== */}
+          <SectionTitle>Student Information</SectionTitle>
+          <div className="space-y-1">
             <p>
-              For questions about this contract, please contact the
-              administration office.
+              Name of Student: <strong>{fullName}</strong>
+              <span className="ml-8">
+                Student No: <strong>{student?.student_number || "________________"}</strong>
+              </span>
+            </p>
+            <p>
+              Mailing Address: <strong>{student?.mailing_address_line_1 || "________________"}</strong>
+              {student?.mailing_address_line_2 && (
+                <>, <strong>{student.mailing_address_line_2}</strong></>
+              )}
+            </p>
+            <p>
+              City: <strong>{student?.city || "__________________"}</strong>
+              <span className="ml-8">Province: <strong>{student?.province || "________"}</strong></span>
+              <span className="ml-8">Postal Code: <strong>{student?.postal_code || "__________"}</strong></span>
+            </p>
+            <p>
+              Phone: <strong>{student?.phone || "___________________"}</strong>
+              <span className="ml-8">Alternative Phone: {student?.alternate_phone || "________________"}</span>
+            </p>
+            <p>
+              Permanent Address (if different from mailing address)
+            </p>
+            <p>
+              Country: <strong>{student?.country || "___________"}</strong>
+            </p>
+            <p>
+              Email Address: <strong>{student?.email || "________________________"}</strong>
+            </p>
+            <p className="flex items-center gap-4">
+              <span>International Student:</span>
+              <span className="inline-flex items-center gap-1">
+                <Checkbox checked={student?.international_student === true} />
+                Yes
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Checkbox checked={student?.international_student === false} />
+                No
+              </span>
+            </p>
+            <p>
+              Date of Birth (DOB): <strong>{student?.date_of_birth ? formatDateShort(student.date_of_birth) : "____/____/________"}</strong>
+            </p>
+          </div>
+
+          {/* ==================== */}
+          {/* 4. Program Information */}
+          {/* ==================== */}
+          <SectionTitle>Program Information</SectionTitle>
+          <div className="space-y-1">
+            <p>
+              <strong>Name of Program: {programName}</strong>
+            </p>
+            <p>
+              Commencing on: <strong>{formatDateShort(batch?.start_date)}</strong>
+              <span className="ml-8">
+                Expected Completion Date: <strong>{formatDateShort(batch?.expected_end_date)}</strong>
+              </span>
+            </p>
+            <p>
+              Credential to be Awarded Upon Successful Completion of the Program:{" "}
+              <strong>{program?.credential_name || "________________"}</strong>
+            </p>
+            <p className="flex items-center gap-4">
+              <strong>Language of Instruction</strong>
+              <span className="inline-flex items-center gap-1">
+                <Checkbox checked={true} />
+                English
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Checkbox checked={false} />
+                Other
+              </span>
+            </p>
+            <p>
+              <strong>Training Location:</strong>{" "}
+              <strong>{batch?.training_location || "________________________"}</strong>
+            </p>
+            <p>
+              Additional Training Location (if any) _________________________________________________
+            </p>
+            <p>
+              <strong>Location of Practicum-1{program?.practicum_hours ? ` (${Math.round(Number(program.practicum_hours) * 2 / 3)} Hours)` : ""}:</strong>{" "}
+              <strong>{batch?.practicum_1_location || "(To be determined as per availability)"}</strong>
+            </p>
+            <p>
+              <strong>Location of Practicum-2{program?.practicum_hours ? ` (${Math.round(Number(program.practicum_hours) / 3)} Hours)` : ""}:</strong>{" "}
+              <strong>{batch?.practicum_2_location || "(To be determined as per availability)"}</strong>
+            </p>
+            <p>
+              <strong>Program length (in hours) {program?.total_hours ? `${program.total_hours} Hours` : "________________"}</strong>
+            </p>
+          </div>
+
+          {/* ==================== */}
+          {/* 5. Class Schedule */}
+          {/* ==================== */}
+          <SectionTitle>Class Schedule</SectionTitle>
+          <ScheduleTable
+            timingNote={batch?.class_time}
+            daysNote={batch?.class_days}
+          />
+
+          {/* ==================== */}
+          {/* 6. Practicum Schedule */}
+          {/* ==================== */}
+          <SectionTitle>Practicum Schedule</SectionTitle>
+          <p className="mb-1">
+            <strong>To be determined as per Host Clinical Facility Preceptor&apos;s schedule</strong>
+          </p>
+          <ScheduleTable />
+
+          {/* ==================== */}
+          {/* 7. Method of Program Delivery */}
+          {/* ==================== */}
+          <p className="flex items-center gap-4 mt-4">
+            <span>Method of program delivery</span>
+            <span className="inline-flex items-center gap-1">
+              <Checkbox checked={batch?.delivery_method === "in_person"} />
+              In-person
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Checkbox checked={batch?.delivery_method === "hybrid"} />
+              Hybrid
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Checkbox checked={batch?.delivery_method === "online"} />
+              Online
+            </span>
+          </p>
+
+          {/* ==================== */}
+          {/* 8. Academic Requirements */}
+          {/* ==================== */}
+          <SectionTitle>Academic Requirements</SectionTitle>
+          <ul className="list-disc pl-6 space-y-2">
+            <li className={checklist?.academic_route === "canadian_secondary" ? "font-bold" : ""}>
+              {checklist?.academic_route === "canadian_secondary" && <CheckMark />}
+              Grade 12 Ontario Secondary School Diploma (OSSD), Canadian Secondary School Diploma or equivalent. Grade 12 English - College or University Track. Copy of Diploma and High School Transcript required.
+            </li>
+          </ul>
+          <p className="text-center my-1">OR</p>
+          <ul className="list-disc pl-6 space-y-2">
+            <li className={checklist?.academic_route === "foreign_credential" ? "font-bold" : ""}>
+              {checklist?.academic_route === "foreign_credential" && <CheckMark />}
+              International Student and/or Applicant with foreign credentials. All foreign credentials must be translated into English and compared for Grade 12 equivalency by a recognized organization such as World Education Services: www.wes.org
+            </li>
+          </ul>
+          <p className="text-center my-1">OR</p>
+          <ul className="list-disc pl-6 space-y-2">
+            <li className={checklist?.academic_route === "mature_student" ? "font-bold" : ""}>
+              {checklist?.academic_route === "mature_student" && <CheckMark />}
+              Mature student status may be granted to applicants who are over 19 years of age and do not have a Canadian high school diploma or GED. Mature Student with a score of 14 or more on the Wonderlic SLE (or other MCU approved test)
+            </li>
+          </ul>
+          {checklist?.academic_route && (
+            <p className="mt-2">
+              Academic Route: <strong>{academicRouteLabels[checklist.academic_route] ?? checklist.academic_route}</strong>
+              {checklist.academic_notes && (
+                <> - Notes: {checklist.academic_notes}</>
+              )}
+            </p>
+          )}
+
+          {/* ==================== */}
+          {/* 9. English Language Proficiency */}
+          {/* ==================== */}
+          <SectionTitle>English Language Proficiency</SectionTitle>
+          <p className="mb-2">
+            If English is not a student&apos;s first language, they must provide proof of English competency. This must be demonstrated through one of the following options:
+          </p>
+          <ol className="list-decimal pl-6 space-y-1">
+            <li className={checklist?.english_route === "ielts" ? "font-bold" : ""}>
+              {checklist?.english_route === "ielts" && <CheckMark />}
+              IELTS - International English Language Testing Services - Minimum average score of 5.5 with no subject test score lower than 5.5.
+            </li>
+            <li className={checklist?.english_route === "toefl_ibt" ? "font-bold" : ""}>
+              {checklist?.english_route === "toefl_ibt" && <CheckMark />}
+              TOEFL - Test of English as a Foreign Language Internet based test (IBT) - overall 80, with the minimum of each component: Reading 20; Listening 20; Speaking 20; Writing 20.
+            </li>
+            <li className={checklist?.english_route === "cael" ? "font-bold" : ""}>
+              {checklist?.english_route === "cael" && <CheckMark />}
+              CAEL - Overall 60 with no section below 60.
+            </li>
+            <li className={checklist?.english_route === "celpip" ? "font-bold" : ""}>
+              {checklist?.english_route === "celpip" && <CheckMark />}
+              Canadian English Language Proficiency Index Program (CELPIP) with a score of 7 (no section scores below 6).
+            </li>
+            <li className={checklist?.english_route === "clb" ? "font-bold" : ""}>
+              {checklist?.english_route === "clb" && <CheckMark />}
+              Canadian Language Benchmark Tests with a score of 7 in each strand (not an average of 7).
+            </li>
+            <li className={checklist?.english_route === "duolingo" ? "font-bold" : ""}>
+              {checklist?.english_route === "duolingo" && <CheckMark />}
+              Duolingo English Test with a minimum score of 95.
+            </li>
+            <li className={checklist?.english_route === "pte_academic" ? "font-bold" : ""}>
+              {checklist?.english_route === "pte_academic" && <CheckMark />}
+              Pearson PTE Academic with a minimum score of 46.
+            </li>
+            <li className={checklist?.english_route === "nacc_written_exam" ? "font-bold" : ""}>
+              {checklist?.english_route === "nacc_written_exam" && <CheckMark />}
+              NACC Written Entrance Exam (passing score of 60)
+            </li>
+            <li className={checklist?.english_route === "two_years_canadian_postsecondary_english" ? "font-bold" : ""}>
+              {checklist?.english_route === "two_years_canadian_postsecondary_english" && <CheckMark />}
+              Evidence of successful completion of 2 consecutive years of full-time equivalent post-secondary study in English at a Canadian institution.
+            </li>
+            <li className={checklist?.english_route === "two_years_international_postsecondary_english" ? "font-bold" : ""}>
+              {checklist?.english_route === "two_years_international_postsecondary_english" && <CheckMark />}
+              Evidence of successful completion of 2 consecutive years of full-time equivalent post-secondary study in English at an institution outside of Canada.
+            </li>
+          </ol>
+          {checklist?.english_route && checklist.english_score && (
+            <p className="mt-2">
+              Score: <strong>{checklist.english_score}</strong>
+              {checklist.english_notes && <> - Notes: {checklist.english_notes}</>}
+            </p>
+          )}
+
+          {/* ==================== */}
+          {/* 10. Fees */}
+          {/* ==================== */}
+          <SectionTitle>Fees</SectionTitle>
+          <div className="space-y-1">
+            <FeeLineItem label="Tuition fee" amount={feeSchedule?.tuition_fee} />
+            <FeeLineItem label="Book fees" amount={feeSchedule?.book_fee} />
+            <FeeLineItem label="Compulsory fees (Itemized)" amount={feeSchedule?.compulsory_fee} />
+            <FeeLineItem label="Field Trips" amount={feeSchedule?.field_trip_fee} />
+            <FeeLineItem label="Uniform & equipment fees" amount={feeSchedule?.uniform_equipment_fee} />
+            <FeeLineItem label="Professional Exam fees" amount={feeSchedule?.professional_exam_fee} />
+            <FeeLineItem label="Expendable supplies" amount={feeSchedule?.expendable_supplies_fee} />
+            <FeeLineItem label="International fees" amount={feeSchedule?.international_fee} />
+            <FeeLineItem label="Optional fees" amount={feeSchedule?.optional_fee} />
+            {feeSchedule && Number(feeSchedule.discount_amount) > 0 && (
+              <FeeLineItem label="Discount" amount={-Number(feeSchedule.discount_amount)} />
+            )}
+            <p className="font-bold mt-2 pt-1 border-t border-black">
+              Total fees CAN{" "}
+              <span className="ml-4">$ {feeSchedule ? formatCurrencyPlain(feeSchedule.total_fees) : "___________________"}</span>
+            </p>
+          </div>
+
+          {/* ==================== */}
+          {/* 11. Payment Schedule */}
+          {/* ==================== */}
+          <SectionTitle>Payment Schedule</SectionTitle>
+          <p className="mb-2">
+            For programs approved for student loan purposes, the Payment Schedule should note that funds received from the Canada-Ontario Integrated Student Loan and Grant Funding (Ontario Student Assistance Program) or any other financial aid will be applied as payments. Verification of receipt of payment must be attached to the original contract.
+          </p>
+          <div className="space-y-1 mb-3">
+            <p>
+              1. Payments prior to signing contract (if any): CAN$ ={" "}
+              <strong>{feeSchedule ? formatCurrencyPlain(feeSchedule.payment_before_signing) : "___________"}</strong>
+            </p>
+            <p>
+              2. Payments after signing contract: CAN$ ={" "}
+              <strong>{feeSchedule ? (Number(feeSchedule.payment_after_signing) === 0 ? "NIL" : formatCurrencyPlain(feeSchedule.payment_after_signing)) : "___________"}</strong>
+            </p>
+          </div>
+
+          <table className="w-full border-collapse border border-black text-xs">
+            <thead>
+              <tr>
+                <th className="border border-black px-2 py-1 text-left">Instalment</th>
+                <th className="border border-black px-2 py-1 text-left">Due Date</th>
+                <th className="border border-black px-2 py-1 text-left">Amount due: CAN$</th>
+                <th className="border border-black px-2 py-1 text-left">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {installments.length > 0 ? (
+                installments.map((inst) => (
+                  <tr key={inst.id}>
+                    <td className="border border-black px-2 py-1">{inst.installment_number}</td>
+                    <td className="border border-black px-2 py-1 font-bold">
+                      {formatDateShort(inst.due_date)}
+                    </td>
+                    <td className="border border-black px-2 py-1 font-bold">
+                      {formatCurrencyPlain(inst.amount_due)}
+                    </td>
+                    <td className="border border-black px-2 py-1">{inst.notes || ""}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td className="border border-black px-2 py-1" colSpan={4}>
+                    No installments configured
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+
+          {installments.length > 0 && (
+            <div className="mt-2 space-y-1">
+              <p>
+                3. Payments (installments) -{" "}
+                <strong>
+                  {formatCurrencyPlain(
+                    installments.reduce(
+                      (sum, inst) => sum + Number(inst.amount_due),
+                      0
+                    )
+                  )}
+                </strong>
+              </p>
+              <p className="font-bold mt-2">
+                Total payments (1 + 2): CAN$ ={" "}
+                {feeSchedule ? formatCurrencyPlain(feeSchedule.total_fees) : "___________"}
+              </p>
+            </div>
+          )}
+
+          {/* ==================== */}
+          {/* 12. Student Undertaking and Signature */}
+          {/* ==================== */}
+          <div className="mt-4 space-y-3">
+            <p>
+              The undersigned student hereby undertakes and agrees to pay, or see to payment of, the fees indicated above in accordance with the terms of this Enrolment Contract.
+            </p>
+            <p>
+              (Name of Student): <strong>{fullName}</strong>
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-x-8">
+              <div>
+                <p className="mb-1">Date:</p>
+                <SignatureLine />
+              </div>
+              <div>
+                <p className="mb-1">(Signature of Student):</p>
+                <SignatureLine />
+              </div>
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 13. Acknowledgement and Certification */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Acknowledgement and Certification</SectionTitle>
+          <p className="mb-2">
+            I, <strong>{fullName}</strong>, acknowledge that I have received a copy of:
+          </p>
+          <div className="space-y-1 pl-4 mb-3">
+            <AckItem label="The Consent to Use of Personal Information" />
+            <AckItem label="The Payment Schedule" />
+            <AckItem label="The College's Fee Refund Policy" />
+            <AckItem label="The Statement of Students' Rights and Responsibilities Issued by the Superintendent of Career Colleges" />
+            <AckItem label="The College's Student Complaint Procedure" />
+            <AckItem label="The College's Policy Relating to the Expulsion of Students" />
+            <AckItem label="The College's Sexual Violence Policy" />
+          </div>
+          <p className="mb-3">
+            I certify that I have read and understood this Enrolment Contract.
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-3">
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Signature of Student)</p>
+            </div>
+            <div>
+              <SignatureLine />
+              <p className="text-xs">Date</p>
+            </div>
+          </div>
+
+          <p className="mb-2">
+            <strong>Toronto Academy of Education</strong> does not guarantee employment for any student who successfully completes a vocational program offered by Toronto Academy of Education.
+          </p>
+          <p className="mb-2">
+            It is understood that fees are payable in accordance with the fees specified in this Enrolment Contract and all payments of fees shall become due forthwith upon a statement of accounting being rendered. Toronto Academy of Education reserves the right to cancel this Enrolment Contract if the undersigned student does not attend classes during the first 14 days of the program begins. For information regarding cancellation of this Enrolment Contract and refunds of fees paid, see sections 24 (2) to 33 of O. Reg. 415/06 made under the Ontario Career Colleges Act, 2005.
+          </p>
+          <p className="mb-2">
+            The undersigned student is entitled to a copy of the signed contract immediately after it is signed.
+          </p>
+          <p className="mb-3">
+            The undersigned student hereby undertakes and agrees to pay the fees specified in this Enrolment Contract in accordance with the terms of this Enrolment Contract.
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-4">
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Signature of Student)</p>
+            </div>
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Date)</p>
+            </div>
+          </div>
+          <p className="mb-2">
+            <strong>Toronto Academy of Education</strong> agrees to supply program to the above-named student upon the terms herein mentioned. Toronto Academy of Education may cancel this Enrolment Contract if the above-named student does not meet the admission requirements of <strong>{programName}</strong> before the program begins.
+          </p>
+          <p className="mb-3">
+            The above-named student is entitled to a copy of the signed contract immediately after it is signed.
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-4">
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Signature of Admission Officer, Registrar, Agent)</p>
+            </div>
+            <div>
+              <SignatureLine />
+              <p className="text-xs">Date</p>
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 14. Consent to Use of Personal Information */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Consent to Use of Personal Information</SectionTitle>
+          <p className="mb-2">
+            Career colleges must be registered under the Ontario Career Colleges Act, 2005, which is administered by the Superintendent of Career Colleges. The Act protects students by requiring career colleges to follow specific rules on, for example, fee refunds, training completions if the college closes, qualifications of instructors, access to transcripts and advertising. It also requires colleges to publish and meet certain performance objectives that may be required by the Superintendent for their vocational programs. This information may be used by other students when they are deciding where to obtain their training. The consent set out below will help the Superintendent to ensure that current and future students receive the protection provided by the Act.
+          </p>
+          <p className="mb-2">
+            I, <strong>{fullName}</strong>, allow <strong>13899667 CANADA INC. o/a Toronto Academy of Education</strong> to give my name, address, telephone number, e-mail address and other contact information to the Superintendent of Private Career Colleges for the purposes checked below:
+          </p>
+          <div className="space-y-1 pl-4 mb-2">
+            <p className="flex items-start gap-2">
+              <Checkbox checked={true} />
+              <span>
+                To advise me of my rights under the <strong>Ontario Career Colleges Act, 2005</strong> including my rights to a refund of fees, access to transcripts and a formal student complaint procedure; and
+              </span>
+            </p>
+            <p className="flex items-start gap-2">
+              <Checkbox checked={true} />
+              <span>
+                To determine whether <strong>13899667 CANADA INC. o/a Toronto Academy of Education</strong> has met the performance objectives required by the Superintendent for its vocational programs.
+              </span>
+            </p>
+          </div>
+          <p className="mb-3">
+            I understand that I can refuse to sign this consent form and that I can withdraw my consent at any time for future uses of my personal information by writing to the Chief Operating Officer at 25 Watline Avenue, Unit 204 Mississauga, Ontario, L4Z 2Z1. I understand that if I refuse or withdraw my consent the Superintendent may not be able to contact me to inform me of my rights under the Act or collect information to help potential students make informed decisions about their educational choices.
+          </p>
+          <p className="mb-1">
+            <strong>{fullName}</strong>
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Name of Student)</p>
+            </div>
+            <div />
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Signature of Student)</p>
+            </div>
+            <div>
+              <SignatureLine />
+              <p className="text-xs">(Date)</p>
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 15. Fee Refund Policy */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Fee Refund Policy as Prescribed under s. 24 (2) to 33 of O. Reg. 415/06</SectionTitle>
+          <div className="space-y-2 text-xs">
+            <p>
+              24. (2) In sections 25 to 27,
+            </p>
+            <p className="pl-4">
+              &quot;Earned fees&quot; means the amount of all fees paid for a vocational program that is proportional to the number of instruction hours that have taken place when a withdrawal or expulsion occurs; (&quot;droits acquis&quot;)
+            </p>
+            <p className="pl-4">
+              &quot;Program mid-point&quot; means the point in the progress of a vocational program where half of the scheduled hours of instruction for the program have taken place; (&quot;mi-parcours du programme&quot;)
+            </p>
+            <p className="pl-4">
+              &quot;Service fee&quot; means the lesser of 20 per cent of all vocational program fees and $500. (&quot;frais de service&quot;)
+            </p>
+
+            <p className="font-bold">Full refunds</p>
+            <p>
+              25. If a student has entered into a contract with a career college for a vocational program, the college shall give a refund of all fees paid for the program in the following circumstances:
+            </p>
+            <ol className="list-decimal pl-8 space-y-1">
+              <li>The student rescinds (cancels) the contract in writing within two days of receiving a copy of it, in accordance with section 36 of the Act.</li>
+              <li>Before the student completes the program, the college discontinues the program or the college&apos;s approval to provide the program is revoked by the Superintendent, but the college remains registered under the Act.</li>
+              <li>The college collects any fees before receiving a certificate of registration from the Superintendent.</li>
+              <li>The college collects any fees before the program was approved by the Superintendent.</li>
+              <li>The college collects any fees other than a service fee before the student has entered into a contract with the college.</li>
+              <li>The college expels the student in a manner or for reasons that are contrary to the college&apos;s expulsion policy.</li>
+              <li>The college does not provide an evaluation, in writing, of the student&apos;s progress as required under section 12.</li>
+              <li>The student voids the contract under subsection 18 (2) due to a statement, image or video made by the college that is prohibited under subsection 18 (1).</li>
+              <li>The student voids the contract under section 22 because it is missing a term required under section 20.</li>
+              <li>The student receives instruction from an instructor who is not qualified under section 41 for more than 10 per cent of the program&apos;s duration.</li>
+            </ol>
+
+            <p className="font-bold">Full refunds minus service fee</p>
+            <p>
+              26. A career college shall give a refund of all fees paid for a vocational program, except the service fee, in the following circumstances:
+            </p>
+            <ol className="list-decimal pl-8 space-y-1">
+              <li>The student gives written notice to the college, before the program start date specified in the student&apos;s contract with the college, that the student is withdrawing from the program.</li>
+              <li>The student is admitted to the program on the condition that the student meet specified admission requirements before the program start date specified in the student&apos;s contract with the college, and the student does not meet the requirements before that day.</li>
+              <li>The student does not attend the program within the first 14 days of the program after the program start date specified in the student&apos;s contract with the college and is given written notice that the contract is cancelled from the college within the first 45 days of the program.</li>
+              <li>The college is notified by or on behalf of an international student before the program mid-point that the international student has not been issued a temporary resident visa as a member of the student class under the Immigration and Refugee Protection Act (Canada).</li>
+            </ol>
+
+            <p className="font-bold">Partial refunds</p>
+            <p>
+              27. (1) A career college shall give a student a refund of the fees paid for a vocational program in accordance with this section if,
+            </p>
+            <ol className="list-[lower-alpha] pl-8 space-y-1">
+              <li>the student withdraws from the program after the program start date specified in the student&apos;s contract with the college; or</li>
+              <li>the student is expelled from the program for a reason permitted under the college&apos;s expulsion policy.</li>
+            </ol>
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-8 mt-4 mb-2">
+            <div>
+              <SignatureLine />
+              <p className="text-xs">Student Initials</p>
+            </div>
+            <div>
+              <SignatureLine />
+              <p className="text-xs">Date</p>
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 16. Medical Disclaimer */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Medical Disclaimer</SectionTitle>
+          <p className="mb-2">
+            As this program will involve direct contact with vulnerable individuals, students must submit a completed and satisfactory medical report prior to commencing any practicum placement. It is mandatory to submit the medical report within 45 days of commencement of study to ensure that you can complete the program and be eligible to graduate.
+          </p>
+          <p className="mb-2">
+            Completion of a medical report can take up to four (4) weeks to complete or longer (up to 6 months) if further vaccinations are required. If you are unable to submit the required medical report within 45 days of commencing the program, you risk (1) being ineligible for a practicum placement; (2) being ineligible to graduate from the program; and (3) being ineligible for a partial refund or no refund of tuition, depending on the date of withdrawal.
+          </p>
+          <p className="mb-2 font-bold">
+            According to NACC Personal Support Worker (PSW) Policy:
+          </p>
+          <p className="mb-2 italic">
+            &quot;ALL students accepted into the PSW Program MUST be free from communicable disease, have an up-to-date immunization status, and have a level of fitness sufficient to complete the clinical placement. All students must be provided with a Medical Report on enrollment for completion by their medical practitioner.
+          </p>
+          <p className="mb-1 italic">
+            The completed Medical Report must be:
+          </p>
+          <ol className="list-decimal pl-6 mb-2 italic space-y-1">
+            <li>completed and returned to the college within <strong>45 days of class start</strong>.</li>
+            <li>reviewed by the PSW Program Director to ensure confirmation of current immunization status and the student is free from communicable diseases. The PSW Instructor must be consulted for any health-related interpretation that is required; and</li>
+            <li>placed in the student&apos;s file following review/interpretation.&quot;</li>
+          </ol>
+          <p className="mb-2 font-bold">
+            No students may participate in any Practicum Placement hours prior to submitting a completed and satisfactory immunization & medical report.
+          </p>
+          <p className="mb-2">
+            I, <strong>{fullName}</strong>, acknowledge that I have read the above disclosure and understand that I must obtain and submit up-to-date immunization status within 45 days of commencement of study and that I must, while enrolled in the program, maintain this status in order to complete the practicum placement and graduate.
+          </p>
+          <p className="mb-2">
+            I also understand that if I do not obtain and maintain this up-to-date immunization status, I risk:
+          </p>
+          <p className="font-bold">1. being ineligible for a practicum placement.</p>
+          <p className="font-bold">2. being ineligible to graduate from the program; and</p>
+          <p className="font-bold mb-3">3. being ineligible for a partial refund or no refund of tuition, depending on when I withdraw from this program.</p>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1">Student Signature:</p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1">Date:</p>
+              <SignatureLine />
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 17. Vulnerable Sector Disclaimer */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Vulnerable Sector Disclaimer</SectionTitle>
+          <p className="mb-2">
+            As this program will involve direct contact with vulnerable individuals, students must submit a clean Canada wide Police Clearance of Criminal Record and Vulnerable Sector Screening (VSS) prior to commencing any practicum placement. It is mandatory to submit this report within 45 days of commencement of study to ensure that you can complete the program and be eligible to graduate. A VSS can take 10 to 12 weeks to complete. If you are unable to submit the required VSS within 45 days of commencing the program, you risk (1) being ineligible for a practicum placement; (2) being ineligible to graduate from the program; and (3) being ineligible for a partial refund or no refund of tuition, depending on the date of withdrawal.
+          </p>
+          <p className="mb-2">
+            A VSS involves a search of the Vulnerable Sector Database, maintained by the Ontario Provincial Police, for any information about you in police files, including criminal convictions, outstanding charges, and information about whether you are suspected of committing a criminal offence or involved in a serious criminal investigation. Police databases will also document any contact that you may have had with police services under the Mental Health Act, 1990.
+          </p>
+          <p className="mb-2 font-bold">
+            You must also ensure that you do not engage in any activities at any time during the program, including while undertaking a practicum placement, which would render a clean VSS void previously submitted by you. Failure to maintain a clean VSS will also render you unable to undertake or continue the practicum placement, ineligible for graduation, and only eligible for a partial refund or no refund of tuition, depending on when you withdraw, or when you are expelled from the program.
+          </p>
+          <p className="mb-2">
+            I, <strong>{fullName}</strong>, acknowledge that I have read the above disclosure and understand that I must obtain and submit a clean VSS within 45 days of commencement of study and understand that I must, while enrolled in the program, maintain this status to complete the practicum placement and graduate.
+          </p>
+          <p className="mb-2">
+            I also understand that if I do not obtain and maintain this up-to-date clean VSS status, I risk:
+          </p>
+          <ol className="list-decimal pl-6 font-bold space-y-1 mb-2">
+            <li>being ineligible for a practicum placement.</li>
+            <li>being ineligible to graduate from the program; and</li>
+          </ol>
+          <p className="font-bold mb-2">
+            3. being ineligible for a partial refund or no refund of tuition, depending on when I withdraw from this program.
+          </p>
+          <p className="mb-3">
+            Please contact your local police authorities to complete this process.
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1">Student Signature:</p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1">Date:</p>
+              <SignatureLine />
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 18. Practicum Placement Disclaimer & Acknowledgement */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Practicum Placement Disclaimer & Acknowledgement</SectionTitle>
+          <p className="mb-2">
+            Dear Student,
+          </p>
+          <p className="mb-2">
+            As part of your enrollment in the <strong>{programName}</strong> at Toronto Academy of Education, we would like to outline the expectations and important information regarding your <strong>clinical practicum placement</strong>. This placement is a mandatory component of your program and is governed by standards set out by the Ministry of Colleges and Universities (MCU) and the National Association of Career Colleges (NACC).
+          </p>
+          <p className="mb-3">
+            We ask that you read the following carefully and sign below to acknowledge your understanding and agreement.
+          </p>
+
+          <p className="font-bold mb-2">Practicum Placement Expectations</p>
+          <p className="mb-2">
+            Toronto Academy of Education is committed to providing students with placement opportunities that meet program standards. In return, we expect our students to maintain high standards of professionalism and responsibility during their placement experience.
+          </p>
+
+          <p className="font-bold mb-1">1. Student Conduct</p>
+          <p className="mb-1">
+            During your clinical placement, you are representing both yourself and the college in a professional healthcare setting. You are expected to:
+          </p>
+          <ul className="list-disc pl-6 space-y-1 mb-2">
+            <li>Conduct yourself in a <strong>respectful, responsible, and professional</strong> manner at all times.</li>
+            <li>Follow the <strong>rules, policies, procedures, and code of conduct</strong> of the placement facility.</li>
+            <li>Maintain <strong>confidentiality</strong>, demonstrate good communication skills, and work effectively within a healthcare team.</li>
+            <li>Respect the learning environment and all individuals involved, including staff, residents/clients, and supervisors.</li>
+          </ul>
+          <p className="mb-3">
+            Any <strong>unprofessional or inappropriate behavior</strong> may result in the termination of your placement and may affect your program standing.
+          </p>
+
+          <p className="font-bold mb-1">2. Placement Nature</p>
+          <ul className="list-disc pl-6 space-y-1 mb-3">
+            <li>The college will <strong>facilitate your practicum placement</strong> as per program requirements.</li>
+            <li>Please note that the <strong>nature of the placement (paid or unpaid)</strong> is determined <strong>entirely by the clinical or community facility</strong>, based on their internal policies and government regulations.</li>
+            <li><strong>Toronto Academy of Education has no influence</strong> over whether a placement is paid or unpaid.</li>
+            <li>By signing this form, you acknowledge that the college <strong>cannot guarantee paid placements</strong>.</li>
+          </ul>
+
+          <p className="font-bold mb-1">3. Placement Requirements</p>
+          <p className="mb-1">To be eligible for placement, you must:</p>
+          <ul className="list-disc pl-6 space-y-1 mb-3">
+            <li>Successfully complete <strong>all theory modules</strong> prior to placement.</li>
+            <li>Complete <strong>{program?.practicum_hours || "___"} hours</strong> of placement.</li>
+            <li>Submit all required documentation, including:
+              <ul className="list-disc pl-6 mt-1 space-y-1">
+                <li>Valid <strong>CPR and First Aid Certification</strong></li>
+                <li>Up-to-date <strong>medical clearance</strong></li>
+                <li><strong>Police Vulnerable Sector Screening (VSS)</strong></li>
+              </ul>
+            </li>
+            <li>Accurately record all placement hours in your <strong>Skills Passbook</strong>, with proper sign-offs.</li>
+            <li>Demonstrate satisfactory performance and competency in all required PSW skills.</li>
+          </ul>
+          <p className="mb-3">
+            Failure to meet these requirements may result in removal from placement or the need to repeat certain placement hours.
+          </p>
+
+          <p className="font-bold mb-1">4. College&apos;s Role</p>
+          <ul className="list-disc pl-6 space-y-1 mb-3">
+            <li>The college will arrange placement opportunities and ensure compliance with program standards.</li>
+            <li>The college will provide WSIB and liability insurance for all approved placement hours.</li>
+            <li>Your instructor will remain involved during your placement to monitor your progress, provide feedback, and support your success.</li>
+          </ul>
+
+          <p className="font-bold mb-2">Student Acknowledgment</p>
+          <p className="mb-3">
+            By signing below, you acknowledge that you have read, understood, and agreed to the above placement terms and expectations. You understand your responsibility to conduct yourself professionally and meet all placement requirements. You also acknowledge that the college is not responsible for determining whether a placement is paid or unpaid.
+          </p>
+          <p className="mb-2">
+            <strong>Student Name:</strong> <strong>{fullName}</strong>
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1"><strong>Signature:</strong></p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1"><strong>Date:</strong></p>
+              <SignatureLine />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1"><strong>College Representative:</strong></p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1"><strong>Date:</strong></p>
+              <SignatureLine />
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 19. Student Immigration Status Acknowledgement */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Student Immigration Status Acknowledgement</SectionTitle>
+          <p className="mb-2">
+            This form must be reviewed and signed by all students enrolling in programs at <strong>Toronto Academy of Education</strong>.
+          </p>
+          <p className="mb-1">
+            Student Name: <strong>{fullName}</strong>
+            <span className="ml-8">Program Name: <strong>{programName}</strong></span>
+          </p>
+          <p className="mb-3">
+            Start Date: <strong>{formatDateShort(batch?.start_date)}</strong>
+            <span className="ml-8">End Date: <strong>{formatDateShort(batch?.expected_end_date)}</strong></span>
+          </p>
+          <p className="font-bold mb-2">Acknowledgment of Immigration Status Responsibility:</p>
+          <p className="mb-2">
+            I, the undersigned student, understand and acknowledge the following:
+          </p>
+          <ol className="list-decimal pl-6 space-y-2 mb-3">
+            <li>
+              <strong>Maintenance of Legal Immigration Status</strong><br />
+              I am solely responsible for maintaining valid immigration status in Canada throughout the duration of my studies at Toronto Academy of Education. This includes, but is not limited to, holding a valid Study Permit, Work Permit, or Visitor Record, as applicable.
+            </li>
+            <li>
+              <strong>Change of Immigration Status</strong><br />
+              I agree to immediately notify Toronto Academy of Education in writing if there is any change to my immigration status, including expiration, renewal, or modification of:
+              <ul className="list-disc pl-6 mt-1 space-y-1">
+                <li>Study permit</li>
+                <li>Work permit</li>
+                <li>Visitor status</li>
+                <li>Permanent residency or any other legal status in Canada</li>
+              </ul>
+            </li>
+            <li>
+              <strong>College&apos;s Limitation of Liability</strong><br />
+              I understand that Toronto Academy of Education is not responsible for monitoring, managing, or resolving any immigration-related issues that may arise during my enrollment. Furthermore, the college is not liable for any consequences, academic interruptions, or legal implications resulting from changes or discrepancies in my immigration status.
+            </li>
+            <li>
+              <strong>Government Compliance</strong><br />
+              I understand that it is my responsibility to ensure compliance with Immigration, Refugees and Citizenship Canada (IRCC) regulations at all times, and to seek legal or immigration counsel if needed.
+            </li>
+          </ol>
+          <p className="mb-3">
+            By signing below, I confirm that I have read, understood, and agree to the above statements regarding my immigration responsibilities as an international student.
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1">Student Signature:</p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1">Date:</p>
+              <SignatureLine />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1">College Representative:</p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1">Date:</p>
+              <SignatureLine />
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 20. Photography and Videography Consent Form */}
+          {/* ==================== */}
+          <div className="contract-section-break" />
+          <SectionTitle>Photography and Videography Consent Form</SectionTitle>
+          <p className="font-bold mb-2">Consent for Use of Likeness</p>
+          <p className="mb-2">
+            By entering the premises of Toronto Academy of Education for any reason - including but not limited to campus tours, classes, training sessions, or other activities - you acknowledge and agree to the following:
+          </p>
+          <ul className="list-disc pl-6 space-y-1 mb-3">
+            <li>You consent to the Academy, its representatives, employees, and authorized agents capturing photographs, video recordings, and audio recordings of you during your visit or participation.</li>
+            <li>You grant the Academy the right to use, reproduce, publish, broadcast, and otherwise distribute any such media in which you may appear, in whole or in part, without compensation or further approval, for purposes including but not limited to marketing, promotional materials, advertising, website content, social media, publications, and other educational or commercial uses.</li>
+            <li>You understand that all media captured will be the property of Toronto Academy of Education and may be used indefinitely.</li>
+            <li>You waive any rights of inspection, approval, or ownership regarding the use of the images and recordings.</li>
+            <li>You release and hold harmless Toronto Academy of Education, its employees, officers, directors, agents, and assigns from any claims, demands, actions, or causes of action arising out of or in connection with the use of such media.</li>
+          </ul>
+          <p className="mb-3">
+            If you do not wish to be photographed or recorded, you must notify a representative of the Academy prior to the start of your visit or participation.
+          </p>
+          <p className="mb-2">
+            <strong>Name:</strong> <strong>{fullName}</strong>
+          </p>
+          <div className="grid grid-cols-2 gap-x-8 mb-2">
+            <div>
+              <p className="mb-1"><strong>Signature:</strong></p>
+              <SignatureLine />
+            </div>
+            <div>
+              <p className="mb-1"><strong>Date:</strong></p>
+              <SignatureLine />
+            </div>
+          </div>
+
+          {/* ==================== */}
+          {/* 21. Footer / Contact Area */}
+          {/* ==================== */}
+          <hr className="border-black mt-6" />
+          <div className="text-center text-xs space-y-1 mt-4">
+            <p className="font-bold">Toronto Academy of Education</p>
+            <p>25 Watline Avenue, Unit 204, Mississauga, Ontario, L4Z 2Z1</p>
+            <p>
+              For questions about this contract, please contact the administration office.
             </p>
           </div>
           {(footerLeftUrl || footerRightUrl) && (
@@ -1018,23 +1115,11 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
   );
 }
 
-function ContractSection({
-  title,
-  editLink,
-  children,
-}: {
-  title: string;
-  editLink?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <div className="contract-section">
-      <div className="flex items-center justify-between border-b border-zinc-300 pb-2 mb-3">
-        <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
-        {editLink && <div className="no-print">{editLink}</div>}
-      </div>
+    <p className="text-sm font-bold uppercase mt-4 mb-2">
       {children}
-    </div>
+    </p>
   );
 }
 
@@ -1051,7 +1136,7 @@ function EditLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-800 transition-colors"
     >
       <Icon className="h-3 w-3" />
       {label}
@@ -1059,50 +1144,95 @@ function EditLink({
   );
 }
 
-function FieldTable({
-  rows,
-}: {
-  rows: [string, string | null | undefined][];
-}) {
+function SignatureLine() {
   return (
-    <table className="w-full text-sm">
+    <div className="border-b border-black w-full min-w-[200px] h-8" />
+  );
+}
+
+function Checkbox({ checked }: { checked: boolean }) {
+  return (
+    <span
+      className="inline-flex h-4 w-4 shrink-0 items-center justify-center border border-black text-xs leading-none"
+      style={{ fontWeight: checked ? "bold" : "normal" }}
+    >
+      {checked ? "X" : ""}
+    </span>
+  );
+}
+
+function CheckMark() {
+  return (
+    <span className="font-bold mr-1">[Selected]</span>
+  );
+}
+
+function AckItem({ label }: { label: string }) {
+  return (
+    <p className="flex items-start gap-2">
+      <Checkbox checked={true} />
+      <span>{label}</span>
+    </p>
+  );
+}
+
+function ScheduleTable({
+  timingNote,
+  daysNote,
+}: {
+  timingNote?: string | null;
+  daysNote?: string | null;
+} = {}) {
+  const days = ["Monday", "Tuesday", "Wed", "Thursday", "Friday", "Saturday", "Sunday"];
+  return (
+    <table className="w-full border-collapse border border-black text-xs">
+      <thead>
+        <tr>
+          <th className="border border-black px-1 py-1 text-left font-bold w-16">Days</th>
+          {days.map((d) => (
+            <th key={d} className="border border-black px-1 py-1 text-center font-bold">
+              {d}
+            </th>
+          ))}
+        </tr>
+      </thead>
       <tbody>
-        {rows.map(([label, value], idx) => (
-          <tr key={idx} className="border-b border-zinc-100 last:border-b-0">
-            <td className="py-1.5 pr-4 font-medium text-zinc-600 w-52">
-              {label}
+        <tr>
+          <td className="border border-black px-1 py-1 font-bold">Timings</td>
+          {days.map((d) => (
+            <td key={d} className="border border-black px-1 py-1 text-center">
+              {timingNote && ["Monday", "Tuesday", "Wed", "Thursday", "Friday"].includes(d)
+                ? <span className="font-bold">{timingNote}</span>
+                : ""}
             </td>
-            <td className="py-1.5 text-zinc-900">
-              {value || <span className="text-zinc-400">--</span>}
+          ))}
+        </tr>
+        <tr>
+          <td className="border border-black px-1 py-1 font-bold">Hours</td>
+          {days.map((d) => (
+            <td key={d} className="border border-black px-1 py-1 text-center">
+              {daysNote && ["Monday", "Tuesday", "Wed", "Thursday", "Friday"].includes(d)
+                ? ""
+                : ""}
             </td>
-          </tr>
-        ))}
+          ))}
+        </tr>
       </tbody>
     </table>
   );
 }
 
-function FeeRow({ label, amount }: { label: string; amount: number }) {
-  if (Number(amount) === 0) return null;
+function FeeLineItem({
+  label,
+  amount,
+}: {
+  label: string;
+  amount: number | null | undefined;
+}) {
   return (
-    <tr>
-      <td className="py-2 text-zinc-700">{label}</td>
-      <td className="py-2 text-right text-zinc-700">
-        {formatCurrency(amount)}
-      </td>
-    </tr>
+    <p className="flex justify-between">
+      <span>{label}</span>
+      <span>$ {amount != null ? formatCurrencyPlain(amount) : "___________________"}</span>
+    </p>
   );
-}
-
-function SignatureLine({ label }: { label: string }) {
-  return (
-    <div className="mb-4">
-      <div className="border-b border-zinc-400 pb-6" />
-      <p className="mt-1 text-xs text-zinc-500">{label}</p>
-    </div>
-  );
-}
-
-function Hr() {
-  return <hr className="border-zinc-300" />;
 }
