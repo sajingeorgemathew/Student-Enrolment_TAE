@@ -539,60 +539,48 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
 
           {/* 8. Academic Requirements */}
           <SectionTitle>Academic Requirements</SectionTitle>
-          <ul className="list-disc pl-6 space-y-1">
-            <li
-              className={
-                checklist?.academic_route === "canadian_secondary"
-                  ? "font-bold"
-                  : ""
-              }
-            >
-              {checklist?.academic_route === "canadian_secondary" && (
-                <CheckMark />
-              )}
-              Grade 12 Ontario Secondary School Diploma (OSSD), Canadian
-              Secondary School Diploma or equivalent. Grade 12 English -
-              College or University Track. Copy of Diploma and High School
-              Transcript required.
-            </li>
-          </ul>
+          <div className="pl-6 space-y-1">
+            <p className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">
+                <Checkbox checked={checklist?.academic_route === "canadian_secondary"} />
+              </span>
+              <span>
+                Grade 12 Ontario Secondary School Diploma (OSSD), Canadian
+                Secondary School Diploma or equivalent. Grade 12 English -
+                College or University Track. Copy of Diploma and High School
+                Transcript required.
+              </span>
+            </p>
+          </div>
           <p className="text-center my-1">OR</p>
-          <ul className="list-disc pl-6 space-y-1">
-            <li
-              className={
-                checklist?.academic_route === "foreign_credential"
-                  ? "font-bold"
-                  : ""
-              }
-            >
-              {checklist?.academic_route === "foreign_credential" && (
-                <CheckMark />
-              )}
-              International Student and/or Applicant with foreign
-              credentials. All foreign credentials must be translated into
-              English and compared for Grade 12 equivalency by a recognized
-              organization such as World Education Services: www.wes.org
-            </li>
-          </ul>
+          <div className="pl-6 space-y-1">
+            <p className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">
+                <Checkbox checked={checklist?.academic_route === "foreign_credential"} />
+              </span>
+              <span>
+                International Student and/or Applicant with foreign
+                credentials. All foreign credentials must be translated into
+                English and compared for Grade 12 equivalency by a recognized
+                organization such as World Education Services: www.wes.org
+              </span>
+            </p>
+          </div>
           <p className="text-center my-1">OR</p>
-          <ul className="list-disc pl-6 space-y-1">
-            <li
-              className={
-                checklist?.academic_route === "mature_student"
-                  ? "font-bold"
-                  : ""
-              }
-            >
-              {checklist?.academic_route === "mature_student" && (
-                <CheckMark />
-              )}
-              Mature student status may be granted to applicants who are
-              over 19 years of age and do not have a Canadian high school
-              diploma or GED. Mature Student with a score of 14 or more on
-              the Wonderlic SLE (or other MCU approved test - Note: CAT and
-              CAST can no longer be used)
-            </li>
-          </ul>
+          <div className="pl-6 space-y-1">
+            <p className="flex items-start gap-2">
+              <span className="mt-0.5 shrink-0">
+                <Checkbox checked={checklist?.academic_route === "mature_student"} />
+              </span>
+              <span>
+                Mature student status may be granted to applicants who are
+                over 19 years of age and do not have a Canadian high school
+                diploma or GED. Mature Student with a score of 14 or more on
+                the Wonderlic SLE (or other MCU approved test - Note: CAT and
+                CAST can no longer be used)
+              </span>
+            </p>
+          </div>
 
           {/* 9. English Language Proficiency */}
           <SectionTitle>English Language Proficiency</SectionTitle>
@@ -1807,10 +1795,6 @@ function Checkbox({ checked }: { checked: boolean }) {
   );
 }
 
-function CheckMark() {
-  return <span className="font-bold mr-1">[Selected]</span>;
-}
-
 function AckItem({ label }: { label: string }) {
   return (
     <p className="flex items-start gap-2">
@@ -1831,9 +1815,13 @@ function EnglishOption({
 }) {
   const isSelected = selected === route;
   return (
-    <li className={isSelected ? "font-bold" : ""}>
-      {isSelected && <CheckMark />}
-      {children}
+    <li>
+      <span className="flex items-start gap-2">
+        <span className="mt-0.5 shrink-0">
+          <Checkbox checked={isSelected} />
+        </span>
+        <span>{children}</span>
+      </span>
     </li>
   );
 }

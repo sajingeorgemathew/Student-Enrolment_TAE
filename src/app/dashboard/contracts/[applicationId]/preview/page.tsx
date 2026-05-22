@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getContractDetail } from "@/features/contracts/actions";
 import { ContractPreview } from "@/features/contracts/contract-preview";
-import { PrintButton } from "@/features/contracts/print-button";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
 
 export default async function ContractPreviewPage({
@@ -50,7 +49,6 @@ export default async function ContractPreviewPage({
               </span>
             )}
             <GenerateWordButton applicationId={applicationId} />
-            <PrintButton />
           </div>
         </div>
       </div>
