@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 export type DocumentFormState = {
@@ -125,7 +126,7 @@ export async function uploadDocument(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin" && profile.role !== "sales") {
+  if (!isSalesOrAdmin(profile.role)) {
     return { success: false, error: "Only admin or sales users can upload documents." };
   }
 
@@ -184,7 +185,11 @@ export async function uploadDocument(
   }
 
   const uploadedByType =
-    profile.role === "sales" ? "sales_user" : profile.role === "admin" ? "admin_user" : "staff";
+    profile.role === "sales"
+      ? "sales_user"
+      : profile.role === "admin" || profile.role === "super_admin"
+        ? "admin_user"
+        : "staff";
 
   const { error: insertError } = await supabase
     .from("student_documents")
@@ -224,7 +229,7 @@ export async function updateDocumentReview(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin") {
+  if (!isAdminOrSuper(profile.role)) {
     return { success: false, error: "Only admins can review documents." };
   }
 

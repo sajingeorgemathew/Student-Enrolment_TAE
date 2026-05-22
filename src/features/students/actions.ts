@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile } from "@/lib/profile";
+import { isSalesOrAdmin } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 export type StudentFormState = {
@@ -129,7 +130,7 @@ export async function updateStudent(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin" && profile.role !== "sales") {
+  if (!isSalesOrAdmin(profile.role)) {
     return { success: false, error: "Only admin or sales users can edit students." };
   }
 

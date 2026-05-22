@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile } from "@/lib/profile";
+import { isSalesOrAdmin } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -53,7 +54,7 @@ export async function createIntake(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin" && profile.role !== "sales") {
+  if (!isSalesOrAdmin(profile.role)) {
     return {
       success: false,
       error: "You do not have permission to create intakes.",
@@ -163,7 +164,7 @@ export async function createIntake(
 export async function submitToAdminReview(applicationId: string) {
   const profile = await getUserProfile();
   if (!profile) return { success: false, error: "You must be logged in." };
-  if (profile.role !== "admin" && profile.role !== "sales") {
+  if (!isSalesOrAdmin(profile.role)) {
     return { success: false, error: "You do not have permission." };
   }
 
