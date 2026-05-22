@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 
 export type FeeFormState = {
@@ -118,7 +119,7 @@ export async function saveFeeSchedule(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin") {
+  if (!isAdminOrSuper(profile.role)) {
     return { success: false, error: "Only admins can manage fee schedules." };
   }
 
@@ -298,7 +299,7 @@ export async function approveFeeSchedule(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin") {
+  if (!isAdminOrSuper(profile.role)) {
     return { success: false, error: "Only admins can approve fee schedules." };
   }
 

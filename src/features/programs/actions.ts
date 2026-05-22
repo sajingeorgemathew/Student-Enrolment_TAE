@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -51,7 +52,7 @@ export async function createProgram(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin") {
+  if (!isAdminOrSuper(profile.role)) {
     return {
       success: false,
       error: "Only administrators can create programs.",
@@ -119,7 +120,7 @@ export async function updateProgram(
   if (!profile) {
     return { success: false, error: "You must be logged in." };
   }
-  if (profile.role !== "admin") {
+  if (!isAdminOrSuper(profile.role)) {
     return {
       success: false,
       error: "Only administrators can edit programs.",

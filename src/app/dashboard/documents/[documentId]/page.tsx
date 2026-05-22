@@ -5,6 +5,7 @@ import { getDocumentDetail } from "@/features/documents/actions";
 import { DocumentReviewForm } from "@/features/documents/document-review-form";
 import { DocumentPreview } from "@/features/documents/document-preview";
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const reviewStatusLabels: Record<string, string> = {
   uploaded: "Uploaded",
@@ -57,7 +58,7 @@ export default async function DocumentDetailPage({
   }
 
   const profile = await getUserProfile();
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
   const student = doc.students as unknown as {
     id: string;
