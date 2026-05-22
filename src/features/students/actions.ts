@@ -65,16 +65,17 @@ export async function getStudentById(studentId: string) {
     .select(
       `
       *,
-      programs (id, program_code, program_name, credential_name, total_hours),
-      batches (id, batch_name, batch_code, start_date, expected_end_date, class_days, class_time, delivery_method, training_location)
+      programs (
+        id, program_code, program_name, credential_name,
+        total_hours, theory_hours, practicum_hours
+      ),
+      batches (
+        id, batch_name, batch_code, start_date, expected_end_date,
+        class_days, class_time, delivery_method, training_location,
+        practicum_1_location, practicum_2_location
+      )
     `
     )
-    .eq("student_id", studentId)
-    .order("created_at", { ascending: false });
-
-  const { data: quotes } = await supabase
-    .from("quotes")
-    .select("*")
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });
 
@@ -97,7 +98,9 @@ export async function getStudentById(studentId: string) {
 
   const { data: contracts } = await supabase
     .from("contracts")
-    .select("id, contract_number, status, generated_at, signed_at")
+    .select(
+      "id, contract_number, status, generated_at, signed_at, application_id"
+    )
     .eq("student_id", studentId)
     .order("created_at", { ascending: false });
 
@@ -112,13 +115,54 @@ export async function getStudentById(studentId: string) {
     checklists = checklistData ?? [];
   }
 
+  let feeSchedules: Array<Record<string, unknown>> = [];
+  let installments: Array<Record<string, unknown>> = [];
+  if (applicationIds.length > 0) {
+    const { data: feeData } = await supabase
+      .from("fee_schedules")
+      .select("*")
+      .in("application_id", applicationIds)
+      .order("created_at", { ascending: false });
+    feeSchedules = feeData ?? [];
+
+    const feeIds = (feeData ?? []).map((f) => f.id);
+    if (feeIds.length > 0) {
+      const { data: installmentData } = await supabase
+        .from("payment_installments")
+        .select("*")
+        .in("fee_schedule_id", feeIds)
+        .order("installment_number", { ascending: true });
+      installments = installmentData ?? [];
+    }
+  }
+
+  const ownerIds = new Set<string>();
+  for (const app of applications ?? []) {
+    if (app.sales_owner) ownerIds.add(app.sales_owner);
+    if (app.admin_owner) ownerIds.add(app.admin_owner);
+  }
+  let ownerProfiles: Record<string, string> = {};
+  if (ownerIds.size > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", Array.from(ownerIds));
+    if (profiles) {
+      ownerProfiles = Object.fromEntries(
+        profiles.map((p) => [p.id, p.full_name || p.email || p.id])
+      );
+    }
+  }
+
   return {
     student,
     applications: applications ?? [],
-    quotes: quotes ?? [],
     documents: documents ?? [],
     contracts: contracts ?? [],
     checklists,
+    feeSchedules,
+    installments,
+    ownerProfiles,
   };
 }
 
