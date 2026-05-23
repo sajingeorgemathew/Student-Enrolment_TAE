@@ -181,6 +181,10 @@ export async function saveSalesChecklist(
   }
 
   revalidatePath(`/dashboard/students/${app.student_id}`);
+  revalidatePath("/dashboard/checklists");
+  revalidatePath(`/dashboard/checklists/${applicationId}`);
+  revalidatePath("/dashboard/contracts");
+  revalidatePath(`/dashboard/contracts/${applicationId}/preview`);
   return { success: true };
 }
 

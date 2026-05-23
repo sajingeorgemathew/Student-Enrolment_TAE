@@ -60,36 +60,69 @@ const contractStatusColors: Record<string, string> = {
   archived: "bg-zinc-100 text-zinc-600",
 };
 
+function isChecklistItemDone(status: string): boolean {
+  return status === "accepted" || status === "not_applicable";
+}
+
+function extractFirst<T extends { id: string }>(raw: unknown): T | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) return (raw[0] as T) ?? null;
+  if (typeof raw === "object" && "id" in (raw as Record<string, unknown>)) {
+    return raw as T;
+  }
+  return null;
+}
+
 function computeReadinessSummary(app: {
   fee_schedules: unknown;
   admission_checklists: unknown;
-}): { label: string; color: string } {
-  const feeArr = app.fee_schedules as Array<{
+}): { label: string; color: string; missing: string[] } {
+  const feeSchedule = extractFirst<{
     id: string;
     status: string;
     total_fees: number;
-  }> | null;
-  const checklistArr = app.admission_checklists as Array<{
+  }>(app.fee_schedules);
+  const checklist = extractFirst<{
     id: string;
     photo_id_status: string;
     address_proof_status: string;
     academic_status: string;
     english_status: string;
-  }> | null;
+  }>(app.admission_checklists);
 
-  const feeSchedule = feeArr?.[0];
-  const checklist = checklistArr?.[0];
+  const missing: string[] = [];
 
   const feeApproved = feeSchedule?.status === "approved";
-  const checklistExists = !!checklist;
+  if (!feeApproved) {
+    missing.push(feeSchedule ? "Fee schedule not approved" : "No fee schedule");
+  }
 
-  if (feeApproved && checklistExists) {
-    return { label: "Ready", color: "bg-green-100 text-green-800" };
+  let checklistComplete = false;
+  if (!checklist) {
+    missing.push("No checklist created");
+  } else {
+    const items = [
+      { label: "Photo ID", done: isChecklistItemDone(checklist.photo_id_status) },
+      { label: "Address proof", done: isChecklistItemDone(checklist.address_proof_status) },
+      { label: "Academic requirement", done: isChecklistItemDone(checklist.academic_status) },
+      { label: "English proficiency", done: isChecklistItemDone(checklist.english_status) },
+    ];
+    const incomplete = items.filter((i) => !i.done);
+    checklistComplete = incomplete.length === 0;
+    if (!checklistComplete) {
+      missing.push(
+        `Checklist: ${incomplete.map((i) => i.label).join(", ")}`
+      );
+    }
   }
-  if (feeApproved || checklistExists) {
-    return { label: "Partial", color: "bg-amber-100 text-amber-800" };
+
+  if (feeApproved && checklistComplete) {
+    return { label: "Ready", color: "bg-green-100 text-green-800", missing: [] };
   }
-  return { label: "Not Ready", color: "bg-zinc-100 text-zinc-600" };
+  if (feeApproved || checklistComplete || !!checklist) {
+    return { label: "Partial", color: "bg-amber-100 text-amber-800", missing };
+  }
+  return { label: "Not Ready", color: "bg-zinc-100 text-zinc-600", missing };
 }
 
 export default async function ContractsPage() {
@@ -161,20 +194,18 @@ export default async function ContractsPage() {
                     id: string;
                     batch_name: string;
                   } | null;
-                  const feeArr = app.fee_schedules as unknown as Array<{
+                  const feeSchedule = extractFirst<{
                     id: string;
                     status: string;
                     total_fees: number;
-                  }>;
-                  const feeSchedule = feeArr?.[0] ?? null;
-                  const contractArr = app.contracts as unknown as Array<{
+                  }>(app.fee_schedules);
+                  const contract = extractFirst<{
                     id: string;
                     status: string;
                     contract_number: string | null;
                     generated_at: string | null;
                     signed_at: string | null;
-                  }>;
-                  const contract = contractArr?.[0] ?? null;
+                  }>(app.contracts);
                   const readiness = computeReadinessSummary(app);
 
                   return (
@@ -234,6 +265,11 @@ export default async function ContractsPage() {
                         >
                           {readiness.label}
                         </span>
+                        {readiness.missing.length > 0 && (
+                          <p className="mt-1 text-xs text-zinc-400">
+                            {readiness.missing.join("; ")}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {contract ? (
