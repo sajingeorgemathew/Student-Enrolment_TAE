@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useEffect, useCallback } from "react";
-import { saveFeeSchedule, approveFeeSchedule } from "@/features/fees/actions";
+import { saveFeeSchedule, approveFeeSchedule, reopenFeeSchedule } from "@/features/fees/actions";
 import type { FeeFormState } from "@/features/fees/actions";
 import { useRouter } from "next/navigation";
 
@@ -183,6 +183,19 @@ export function FeeCalculatorForm({
     }
   }
 
+  async function handleReopen() {
+    if (!feeSchedule) return;
+    setApproving(true);
+    setApproveError(null);
+    const result = await reopenFeeSchedule(feeSchedule.id, applicationId);
+    setApproving(false);
+    if (!result.success) {
+      setApproveError(result.error ?? "Could not reopen fee schedule.");
+    } else {
+      router.refresh();
+    }
+  }
+
   const inputClass =
     "mt-1 block w-full rounded-md border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 focus:outline-none disabled:bg-zinc-50 disabled:text-zinc-500";
   const labelClass = "block text-sm font-medium text-zinc-700";
@@ -194,6 +207,11 @@ export function FeeCalculatorForm({
   if (isApproved) {
     return (
       <div className="space-y-6">
+        {approveError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-800">{approveError}</p>
+          </div>
+        )}
         <div className="flex items-center gap-3">
           <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
             Approved
@@ -203,6 +221,14 @@ export function FeeCalculatorForm({
               {new Date(feeSchedule.approved_at).toLocaleDateString("en-CA")}
             </span>
           )}
+          <button
+            type="button"
+            disabled={approving}
+            onClick={handleReopen}
+            className="inline-flex items-center rounded-md border border-amber-600 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50 focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+          >
+            {approving ? "Processing..." : "Reopen for Correction"}
+          </button>
         </div>
 
         <div>
@@ -339,14 +365,18 @@ export function FeeCalculatorForm({
                 ? "bg-zinc-100 text-zinc-700"
                 : feeSchedule.status === "admin_review"
                   ? "bg-amber-100 text-amber-800"
-                  : "bg-zinc-100 text-zinc-600"
+                  : feeSchedule.status === "reopened"
+                    ? "bg-amber-100 text-amber-800"
+                    : "bg-zinc-100 text-zinc-600"
             }`}
           >
             {feeSchedule.status === "draft"
               ? "Draft"
               : feeSchedule.status === "admin_review"
                 ? "Admin Review"
-                : feeSchedule.status}
+                : feeSchedule.status === "reopened"
+                  ? "Reopened"
+                  : feeSchedule.status}
           </span>
         </div>
       )}
@@ -577,7 +607,7 @@ export function FeeCalculatorForm({
 
       <div className="flex items-center justify-between border-t border-zinc-200 pt-6">
         <div>
-          {feeSchedule && feeSchedule.status === "draft" && (
+          {feeSchedule && (feeSchedule.status === "draft" || feeSchedule.status === "reopened") && (
             <button
               type="button"
               disabled={approving || pending}

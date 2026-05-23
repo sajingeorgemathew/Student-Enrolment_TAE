@@ -195,6 +195,9 @@ export async function getStudentById(studentId: string) {
     if (app.sales_owner) ownerIds.add(app.sales_owner);
     if (app.admin_owner) ownerIds.add(app.admin_owner);
   }
+  for (const fee of feeSchedules) {
+    if (fee.approved_by) ownerIds.add(fee.approved_by as string);
+  }
   let ownerProfiles: Record<string, string> = {};
   if (ownerIds.size > 0) {
     const { data: profiles } = await supabase
