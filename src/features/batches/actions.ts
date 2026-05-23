@@ -189,14 +189,20 @@ export async function updateBatch(
   redirect("/dashboard/batches");
 }
 
-export async function getBatches() {
+export async function getBatches(programId?: string) {
   const supabase = await createClient();
-  const { data } = await supabase
+  let query = supabase
     .from("batches")
     .select(
       "id, batch_name, batch_code, start_date, expected_end_date, delivery_method, is_active, created_at, programs (id, program_name, program_code)"
     )
     .order("start_date", { ascending: false });
+
+  if (programId) {
+    query = query.eq("program_id", programId);
+  }
+
+  const { data } = await query;
   return data ?? [];
 }
 

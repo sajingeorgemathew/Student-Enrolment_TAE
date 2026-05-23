@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Plus, ExternalLink } from "lucide-react";
 import { getStudentById } from "@/features/students/actions";
 import { StudentEditForm } from "@/features/students/student-edit-form";
+import { SalesIntakeForm } from "@/features/students/sales-intake-form";
+import { AdminApplicationForm } from "@/features/students/admin-application-form";
+import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
+import { GenerateWordButton } from "@/features/contracts/generate-word-button";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
+import { getHubPrograms, getHubBatches } from "@/features/students/hub-actions";
 
 const statusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -121,6 +126,7 @@ export default async function StudentDetailPage({
     documents,
     contracts,
     checklists,
+    salesChecklists,
     feeSchedules,
     installments,
     ownerProfiles,
@@ -129,6 +135,7 @@ export default async function StudentDetailPage({
   const role = profile?.role ?? null;
   const isAdmin = isAdminOrSuper(role);
   const isSalesOrAbove = isSalesOrAdmin(role);
+  const isViewer = role === "viewer";
 
   const latestApp = applications[0] as (typeof applications)[0] | undefined;
 
@@ -160,6 +167,20 @@ export default async function StudentDetailPage({
     (c) => c.application_id === latestApp?.id
   );
 
+  const latestSalesChecklist = salesChecklists.find(
+    (c) => c.application_id === latestApp?.id
+  ) as {
+    application_id: string;
+    photo_id: string;
+    proof_of_address: string;
+    diploma_or_transcript: string;
+    english_proof: string;
+    immigration_status_document: string;
+    payment_proof_deposit: string;
+    other_documents: string;
+    notes: string | null;
+  } | undefined;
+
   const latestFeeSchedule = feeSchedules.find(
     (f) => f.application_id === latestApp?.id
   ) as Record<string, unknown> | undefined;
@@ -181,6 +202,29 @@ export default async function StudentDetailPage({
     .filter(Boolean)
     .join(", ");
 
+  let programs: { id: string; program_code: string; program_name: string }[] =
+    [];
+  let batchesForProgram: {
+    id: string;
+    batch_name: string;
+    batch_code: string | null;
+    start_date: string | null;
+  }[] = [];
+
+  if (isSalesOrAbove && latestApp) {
+    programs = await getHubPrograms();
+    if (latestApp.program_id) {
+      batchesForProgram = await getHubBatches(latestApp.program_id);
+    }
+  }
+
+  const canGenerateContract =
+    isAdmin &&
+    latestApp &&
+    ["ready_for_contract", "contract_generated", "signature_pending", "signed"].includes(
+      latestApp.status
+    );
+
   return (
     <div>
       <div className="mb-8">
@@ -189,7 +233,7 @@ export default async function StudentDetailPage({
           className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Students
+          All Students
         </Link>
         <div className="flex items-center justify-between">
           <div>
@@ -275,93 +319,206 @@ export default async function StudentDetailPage({
           </FieldGrid>
         </Section>
 
-        {/* Student Edit Form - visible to sales and admin */}
+        {/* 2. Edit Student Information - sales and admin */}
         {isSalesOrAbove && (
           <Section title="Edit Student Information">
             <StudentEditForm student={student} />
           </Section>
         )}
 
-        {/* 2. Intake and Application */}
-        <Section title="Intake and Application">
-          {applications.length === 0 ? (
-            <EmptyState message="No applications found for this student." />
-          ) : (
-            <div className="space-y-4">
-              {applications.map((app) => (
-                <div
-                  key={app.id}
-                  className="rounded-md border border-zinc-200 p-4"
-                >
-                  <div className="mb-3 flex items-center justify-between">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        statusColors[app.status] ?? "bg-zinc-100 text-zinc-600"
-                      }`}
-                    >
-                      {statusLabels[app.status] ?? app.status}
-                    </span>
-                    <span className="text-xs text-zinc-400">
-                      Created{" "}
-                      {new Date(app.created_at).toLocaleDateString("en-CA")}
-                    </span>
-                  </div>
-                  <FieldGrid>
-                    <Field label="Lead Source" value={app.lead_source} />
-                    <Field
-                      label="Sales Owner"
-                      value={
-                        app.sales_owner
-                          ? ownerProfiles[app.sales_owner] ?? app.sales_owner
-                          : null
-                      }
-                    />
-                    <Field
-                      label="Admin Owner"
-                      value={
-                        app.admin_owner
-                          ? ownerProfiles[app.admin_owner] ?? app.admin_owner
-                          : null
-                      }
-                    />
-                    <Field
-                      label="Price Discussed"
-                      value={
-                        app.price_discussed != null
-                          ? `$${Number(app.price_discussed).toLocaleString("en-CA", { minimumFractionDigits: 2 })}`
-                          : null
-                      }
-                    />
-                    <Field
-                      label="Deposit Discussed"
-                      value={
-                        app.deposit_discussed != null
-                          ? `$${Number(app.deposit_discussed).toLocaleString("en-CA", { minimumFractionDigits: 2 })}`
-                          : null
-                      }
-                    />
-                    <Field label="Sales Notes" value={app.sales_notes} />
-                    {isAdmin && (
-                      <Field label="Admin Notes" value={app.admin_notes} />
-                    )}
-                    <Field
-                      label="Submitted to Admin"
-                      value={
-                        app.submitted_to_admin_at
-                          ? new Date(
-                              app.submitted_to_admin_at
-                            ).toLocaleDateString("en-CA")
-                          : null
-                      }
-                    />
-                  </FieldGrid>
-                </div>
-              ))}
+        {/* 3. Sales Intake - editable by sales, viewable by admin */}
+        {isSalesOrAbove && latestApp && (
+          <Section title="Sales Intake">
+            <div className="mb-4 flex items-center gap-3">
+              <span
+                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  statusColors[latestApp.status] ?? "bg-zinc-100 text-zinc-600"
+                }`}
+              >
+                {statusLabels[latestApp.status] ?? latestApp.status}
+              </span>
+              <span className="text-xs text-zinc-400">
+                Created{" "}
+                {new Date(latestApp.created_at).toLocaleDateString("en-CA")}
+              </span>
             </div>
-          )}
-        </Section>
+            <FieldGrid>
+              <Field
+                label="Sales Owner"
+                value={
+                  latestApp.sales_owner
+                    ? ownerProfiles[latestApp.sales_owner] ?? latestApp.sales_owner
+                    : null
+                }
+              />
+              <Field
+                label="Admin Owner"
+                value={
+                  latestApp.admin_owner
+                    ? ownerProfiles[latestApp.admin_owner] ?? latestApp.admin_owner
+                    : null
+                }
+              />
+              {latestApp.submitted_to_admin_at && (
+                <Field
+                  label="Submitted to Admin"
+                  value={new Date(
+                    latestApp.submitted_to_admin_at
+                  ).toLocaleDateString("en-CA")}
+                />
+              )}
+            </FieldGrid>
+            <div className="mt-5 border-t border-zinc-100 pt-5">
+              {role === "sales" ? (
+                <SalesIntakeForm
+                  application={{
+                    id: latestApp.id,
+                    status: latestApp.status,
+                    lead_source: latestApp.lead_source,
+                    program_id: latestApp.program_id,
+                    batch_id: latestApp.batch_id,
+                    price_discussed: latestApp.price_discussed
+                      ? Number(latestApp.price_discussed)
+                      : null,
+                    deposit_discussed: latestApp.deposit_discussed
+                      ? Number(latestApp.deposit_discussed)
+                      : null,
+                    sales_notes: latestApp.sales_notes,
+                    student_id: student.id,
+                  }}
+                  programs={programs}
+                  initialBatches={batchesForProgram}
+                />
+              ) : (
+                <FieldGrid>
+                  <Field label="Lead Source" value={latestApp.lead_source} />
+                  <Field
+                    label="Program Interest"
+                    value={program?.program_name ?? null}
+                  />
+                  <Field
+                    label="Batch Interest"
+                    value={batch?.batch_name ?? null}
+                  />
+                  <Field
+                    label="Price Discussed"
+                    value={
+                      latestApp.price_discussed != null
+                        ? formatCurrency(Number(latestApp.price_discussed))
+                        : null
+                    }
+                  />
+                  <Field
+                    label="Deposit Discussed"
+                    value={
+                      latestApp.deposit_discussed != null
+                        ? formatCurrency(Number(latestApp.deposit_discussed))
+                        : null
+                    }
+                  />
+                  <Field label="Sales Notes" value={latestApp.sales_notes} />
+                </FieldGrid>
+              )}
+            </div>
+          </Section>
+        )}
 
-        {/* 3. Program and Batch */}
+        {/* Viewer: read-only intake/application view */}
+        {isViewer && latestApp && (
+          <Section title="Intake and Application">
+            <div className="mb-3 flex items-center gap-3">
+              <span
+                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                  statusColors[latestApp.status] ?? "bg-zinc-100 text-zinc-600"
+                }`}
+              >
+                {statusLabels[latestApp.status] ?? latestApp.status}
+              </span>
+              <span className="text-xs text-zinc-400">
+                Created{" "}
+                {new Date(latestApp.created_at).toLocaleDateString("en-CA")}
+              </span>
+            </div>
+            <FieldGrid>
+              <Field label="Lead Source" value={latestApp.lead_source} />
+              <Field
+                label="Sales Owner"
+                value={
+                  latestApp.sales_owner
+                    ? ownerProfiles[latestApp.sales_owner] ?? latestApp.sales_owner
+                    : null
+                }
+              />
+              <Field
+                label="Admin Owner"
+                value={
+                  latestApp.admin_owner
+                    ? ownerProfiles[latestApp.admin_owner] ?? latestApp.admin_owner
+                    : null
+                }
+              />
+              <Field
+                label="Price Discussed"
+                value={
+                  latestApp.price_discussed != null
+                    ? formatCurrency(Number(latestApp.price_discussed))
+                    : null
+                }
+              />
+              <Field
+                label="Deposit Discussed"
+                value={
+                  latestApp.deposit_discussed != null
+                    ? formatCurrency(Number(latestApp.deposit_discussed))
+                    : null
+                }
+              />
+              <Field label="Sales Notes" value={latestApp.sales_notes} />
+              {latestApp.submitted_to_admin_at && (
+                <Field
+                  label="Submitted to Admin"
+                  value={new Date(
+                    latestApp.submitted_to_admin_at
+                  ).toLocaleDateString("en-CA")}
+                />
+              )}
+            </FieldGrid>
+          </Section>
+        )}
+
+        {/* 4. Sales Checklist */}
+        {(isSalesOrAbove || isViewer) && latestApp && (
+          <Section title="Sales Checklist">
+            <p className="mb-4 text-xs text-zinc-400">
+              This is the sales-facing document checklist. The official admin
+              checklist is separate.
+            </p>
+            <SalesChecklistForm
+              applicationId={latestApp.id}
+              checklist={latestSalesChecklist ?? null}
+              readOnly={isViewer || isAdmin}
+            />
+          </Section>
+        )}
+
+        {/* 5. Admin Review - admin only editing */}
+        {isAdmin && latestApp && (
+          <Section title="Admin Review">
+            <AdminApplicationForm
+              application={{
+                id: latestApp.id,
+                status: latestApp.status,
+                program_id: latestApp.program_id,
+                batch_id: latestApp.batch_id,
+                admin_notes: latestApp.admin_notes,
+              }}
+              programs={programs}
+              initialBatches={batchesForProgram}
+            />
+          </Section>
+        )}
+
+        {/* 6. Program and Batch */}
         <Section title="Program and Batch">
           {!program ? (
             <EmptyState message="No program assigned yet." />
@@ -441,7 +598,7 @@ export default async function StudentDetailPage({
           )}
         </Section>
 
-        {/* 4. Documents */}
+        {/* 7. Documents */}
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
             <h2 className="text-base font-semibold text-zinc-900">Documents</h2>
@@ -525,11 +682,11 @@ export default async function StudentDetailPage({
           </div>
         </div>
 
-        {/* 5. Admission and English Checklist */}
+        {/* 8. Admission and English Checklist */}
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
             <h2 className="text-base font-semibold text-zinc-900">
-              Admission and English Checklist
+              Official Checklist - Admission and English
             </h2>
             {latestApp && isAdmin && (
               <Link
@@ -600,8 +757,8 @@ export default async function StudentDetailPage({
                   label="English Score"
                   value={latestChecklist.english_score as string | null}
                 />
-                {(latestChecklist.academic_notes as string ||
-                  latestChecklist.english_notes as string) ? (
+                {((latestChecklist.academic_notes as string) ||
+                  (latestChecklist.english_notes as string)) && (
                   <Field
                     label="Notes"
                     value={
@@ -613,167 +770,170 @@ export default async function StudentDetailPage({
                         .join(" | ") || null
                     }
                   />
-                ) : null}
+                )}
               </FieldGrid>
             )}
           </div>
         </div>
 
-        {/* 6. Fees and Payment Schedule */}
-        {(isAdmin || role === "viewer") && (
-          <div className="rounded-lg border border-zinc-200 bg-white">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
-              <h2 className="text-base font-semibold text-zinc-900">
-                Fees and Payment Schedule
-              </h2>
-              {latestApp && isAdmin && (
-                <Link
-                  href={`/dashboard/fees/${latestApp.id}`}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Edit Fees
-                </Link>
-              )}
-            </div>
-            <div className="px-6 py-5">
-              {!latestFeeSchedule ? (
-                <EmptyState message="No fee schedule created yet." />
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${feeStatusColors[latestFeeSchedule.status as string] ?? "bg-zinc-100 text-zinc-600"}`}
-                    >
-                      {feeStatusLabels[latestFeeSchedule.status as string] ??
-                        (latestFeeSchedule.status as string)}
-                    </span>
-                  </div>
-                  <FieldGrid>
-                    <Field
-                      label="Tuition Fee"
-                      value={formatCurrency(
-                        latestFeeSchedule.tuition_fee as number | null
-                      )}
-                    />
-                    <Field
-                      label="Total Fees"
-                      value={formatCurrency(
-                        latestFeeSchedule.total_fees as number | null
-                      )}
-                    />
-                    <Field
-                      label="Discount"
-                      value={formatCurrency(
-                        latestFeeSchedule.discount_amount as number | null
-                      )}
-                    />
-                    <Field
-                      label="Payment Before Signing"
-                      value={formatCurrency(
-                        latestFeeSchedule.payment_before_signing as
-                          | number
-                          | null
-                      )}
-                    />
-                    <Field
-                      label="Payment After Signing"
-                      value={formatCurrency(
-                        latestFeeSchedule.payment_after_signing as number | null
-                      )}
-                    />
-                    <Field
-                      label="Remaining Balance"
-                      value={formatCurrency(
-                        latestFeeSchedule.remaining_balance as number | null
-                      )}
-                    />
-                    <Field
-                      label="Number of Installments"
-                      value={
-                        latestFeeSchedule.number_of_installments != null
-                          ? String(latestFeeSchedule.number_of_installments)
-                          : null
-                      }
-                    />
-                  </FieldGrid>
-
-                  {feeInstallments.length > 0 && (
-                    <div className="mt-4 border-t border-zinc-100 pt-4">
-                      <h3 className="mb-3 text-sm font-medium text-zinc-700">
-                        Payment Installments
-                      </h3>
-                      <div className="overflow-x-auto rounded-md border border-zinc-200">
-                        <table className="min-w-full divide-y divide-zinc-200">
-                          <thead className="bg-zinc-50">
-                            <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                                No.
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                                Due Date
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                                Amount
-                              </th>
-                              <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                                Notes
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-zinc-100">
-                            {feeInstallments.map((inst) => (
-                              <tr key={inst.id as string}>
-                                <td className="px-4 py-2 text-sm text-zinc-900">
-                                  {inst.installment_number as number}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-zinc-600">
-                                  {inst.due_date
-                                    ? new Date(
-                                        inst.due_date as string
-                                      ).toLocaleDateString("en-CA")
-                                    : "--"}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-zinc-900">
-                                  {formatCurrency(inst.amount_due as number)}
-                                </td>
-                                <td className="px-4 py-2 text-sm text-zinc-500">
-                                  {(inst.notes as string) || "--"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+        {/* 9. Fees and Payment Schedule */}
+        <div className="rounded-lg border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+            <h2 className="text-base font-semibold text-zinc-900">
+              Fees and Payment Schedule
+            </h2>
+            {latestApp && isAdmin && (
+              <Link
+                href={`/dashboard/fees/${latestApp.id}`}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Edit Fees
+              </Link>
+            )}
           </div>
-        )}
+          <div className="px-6 py-5">
+            {!latestFeeSchedule ? (
+              <EmptyState message="No fee schedule created yet." />
+            ) : (
+              <>
+                <div className="mb-4">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${feeStatusColors[latestFeeSchedule.status as string] ?? "bg-zinc-100 text-zinc-600"}`}
+                  >
+                    {feeStatusLabels[latestFeeSchedule.status as string] ??
+                      (latestFeeSchedule.status as string)}
+                  </span>
+                </div>
+                <FieldGrid>
+                  <Field
+                    label="Tuition Fee"
+                    value={formatCurrency(
+                      latestFeeSchedule.tuition_fee as number | null
+                    )}
+                  />
+                  <Field
+                    label="Total Fees"
+                    value={formatCurrency(
+                      latestFeeSchedule.total_fees as number | null
+                    )}
+                  />
+                  <Field
+                    label="Discount"
+                    value={formatCurrency(
+                      latestFeeSchedule.discount_amount as number | null
+                    )}
+                  />
+                  <Field
+                    label="Payment Before Signing"
+                    value={formatCurrency(
+                      latestFeeSchedule.payment_before_signing as number | null
+                    )}
+                  />
+                  <Field
+                    label="Payment After Signing"
+                    value={formatCurrency(
+                      latestFeeSchedule.payment_after_signing as number | null
+                    )}
+                  />
+                  <Field
+                    label="Remaining Balance"
+                    value={formatCurrency(
+                      latestFeeSchedule.remaining_balance as number | null
+                    )}
+                  />
+                  <Field
+                    label="Number of Installments"
+                    value={
+                      latestFeeSchedule.number_of_installments != null
+                        ? String(latestFeeSchedule.number_of_installments)
+                        : null
+                    }
+                  />
+                </FieldGrid>
 
-        {/* 7. Contract Word Export */}
-        {(isAdmin || role === "viewer") && (
-          <div className="rounded-lg border border-zinc-200 bg-white">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
-              <h2 className="text-base font-semibold text-zinc-900">
-                Contract - Word Export
-              </h2>
-              {latestApp && isAdmin && (
-                <Link
-                  href={`/dashboard/contracts/${latestApp.id}/preview`}
-                  className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  Contract Preview
-                </Link>
-              )}
-            </div>
-            <div className="px-6 py-5">
-              {!latestContract ? (
+                {feeInstallments.length > 0 && (
+                  <div className="mt-4 border-t border-zinc-100 pt-4">
+                    <h3 className="mb-3 text-sm font-medium text-zinc-700">
+                      Payment Installments
+                    </h3>
+                    <div className="overflow-x-auto rounded-md border border-zinc-200">
+                      <table className="min-w-full divide-y divide-zinc-200">
+                        <thead className="bg-zinc-50">
+                          <tr>
+                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                              No.
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                              Due Date
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                              Amount
+                            </th>
+                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                              Notes
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {feeInstallments.map((inst) => (
+                            <tr key={inst.id as string}>
+                              <td className="px-4 py-2 text-sm text-zinc-900">
+                                {inst.installment_number as number}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-zinc-600">
+                                {inst.due_date
+                                  ? new Date(
+                                      inst.due_date as string
+                                    ).toLocaleDateString("en-CA")
+                                  : "--"}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-zinc-900">
+                                {formatCurrency(inst.amount_due as number)}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-zinc-500">
+                                {(inst.notes as string) || "--"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 10. Contract - Word Export */}
+        <div className="rounded-lg border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+            <h2 className="text-base font-semibold text-zinc-900">
+              Contract - Word Export
+            </h2>
+            {latestApp && isAdmin && (
+              <Link
+                href={`/dashboard/contracts/${latestApp.id}/preview`}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Contract Preview
+              </Link>
+            )}
+          </div>
+          <div className="px-6 py-5">
+            {!latestContract ? (
+              <div>
                 <EmptyState message="No contract generated yet. Complete the checklist and fee schedule first." />
-              ) : (
+                {canGenerateContract && (
+                  <div className="mt-4 flex justify-center">
+                    <GenerateWordButton applicationId={latestApp.id} />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
                 <div className="flex items-center justify-between rounded-md border border-zinc-200 p-4">
                   <div>
                     <p className="text-sm font-medium text-zinc-900">
@@ -802,22 +962,27 @@ export default async function StudentDetailPage({
                     ) : null}
                   </div>
                 </div>
-              )}
-              <p className="mt-3 text-xs text-zinc-400">
-                Official contract output is Word DOCX only.
-              </p>
-            </div>
+                {canGenerateContract && (
+                  <div className="mt-4">
+                    <GenerateWordButton applicationId={latestApp.id} />
+                  </div>
+                )}
+              </div>
+            )}
+            <p className="mt-3 text-xs text-zinc-400">
+              Official contract output is Word DOCX only.
+            </p>
           </div>
-        )}
+        </div>
 
-        {/* 8. Internal Notes Placeholder */}
+        {/* 11. Internal Notes Placeholder */}
         {isAdmin && (
           <Section title="Internal Notes">
             <EmptyState message="Internal notes will be available in a future update." />
           </Section>
         )}
 
-        {/* 9. Activity / Audit Placeholder */}
+        {/* 12. Activity / Audit Placeholder */}
         {isAdmin && (
           <Section title="Activity / Audit Log">
             <EmptyState message="Activity and audit log will be available in a future update." />

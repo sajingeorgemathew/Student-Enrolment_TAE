@@ -34,7 +34,7 @@ export default async function IntakePage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Intakes</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            View and manage student intake records
+            Intake review and new student intake
           </p>
         </div>
         <Link

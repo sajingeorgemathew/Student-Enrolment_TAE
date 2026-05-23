@@ -7,48 +7,65 @@ import {
   FileText,
   DollarSign,
   ScrollText,
+  ClipboardCheck,
+  Settings,
 } from "lucide-react";
 
-const cards = [
-  {
-    title: "Intake",
-    description: "Manage intake applications",
-    href: "/dashboard/intake",
-    icon: ClipboardList,
-  },
-  {
-    title: "Students",
-    description: "View and manage student records",
-    href: "/dashboard/students",
-    icon: Users,
-  },
+const primaryCards = [
   {
     title: "Programs",
-    description: "Manage academic programs and fees",
+    description: "View programs and their batches",
     href: "/dashboard/programs",
     icon: BookOpen,
   },
   {
     title: "Batches",
-    description: "Manage program batches and schedules",
+    description: "View batches and batch students",
     href: "/dashboard/batches",
     icon: Layers,
   },
   {
+    title: "Students",
+    description: "Search students and open student files",
+    href: "/dashboard/students",
+    icon: Users,
+  },
+  {
+    title: "Intakes",
+    description: "Manage intake applications",
+    href: "/dashboard/intake",
+    icon: ClipboardList,
+  },
+  {
+    title: "Admin",
+    description: "Checklists, fees, and admin tools",
+    href: "/dashboard/admin",
+    icon: Settings,
+  },
+];
+
+const secondaryCards = [
+  {
     title: "Documents",
-    description: "Track required documents",
+    description: "All student documents",
     href: "/dashboard/documents",
     icon: FileText,
   },
   {
     title: "Fees",
-    description: "Calculate and manage fees",
+    description: "All fee schedules",
     href: "/dashboard/fees",
     icon: DollarSign,
   },
   {
+    title: "Checklists",
+    description: "All admission checklists",
+    href: "/dashboard/checklists",
+    icon: ClipboardCheck,
+  },
+  {
     title: "Contracts",
-    description: "Generate enrolment contracts",
+    description: "All enrolment contracts",
     href: "/dashboard/contracts",
     icon: ScrollText,
   },
@@ -73,7 +90,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card) => {
+        {primaryCards.map((card) => {
           const Icon = card.icon;
           return (
             <a
@@ -91,6 +108,34 @@ export default async function DashboardPage() {
             </a>
           );
         })}
+      </div>
+
+      <div className="mt-10">
+        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-zinc-400">
+          Module Views
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {secondaryCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <a
+                key={card.href}
+                href={card.href}
+                className="group rounded-lg border border-zinc-200 bg-white p-4 transition-shadow hover:shadow-md"
+              >
+                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-zinc-50 text-zinc-500 group-hover:bg-zinc-100 transition-colors">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-medium text-zinc-700">
+                  {card.title}
+                </h3>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  {card.description}
+                </p>
+              </a>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

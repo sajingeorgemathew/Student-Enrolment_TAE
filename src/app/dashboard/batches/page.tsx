@@ -8,8 +8,14 @@ const deliveryLabels: Record<string, string> = {
   online: "Online",
 };
 
-export default async function BatchesPage() {
-  const batches = await getBatches();
+export default async function BatchesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { programId } = await searchParams;
+  const programFilter = typeof programId === "string" ? programId : undefined;
+  const batches = await getBatches(programFilter);
 
   return (
     <div>
@@ -17,8 +23,19 @@ export default async function BatchesPage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Batches</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Manage program batches and schedules
+            View batches and batch students
           </p>
+          {programFilter && (
+            <p className="mt-1 text-xs text-zinc-400">
+              Filtered by program.{" "}
+              <Link
+                href="/dashboard/batches"
+                className="font-medium text-zinc-600 hover:text-zinc-900"
+              >
+                Show all batches
+              </Link>
+            </p>
+          )}
         </div>
         <Link
           href="/dashboard/batches/new"
@@ -122,12 +139,20 @@ export default async function BatchesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/dashboard/batches/${batch.id}/edit`}
-                          className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
-                        >
-                          Edit
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          <Link
+                            href={`/dashboard/students?batchId=${batch.id}`}
+                            className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                          >
+                            Batch Students
+                          </Link>
+                          <Link
+                            href={`/dashboard/batches/${batch.id}/edit`}
+                            className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                          >
+                            Edit
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

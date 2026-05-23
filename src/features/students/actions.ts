@@ -10,8 +10,55 @@ export type StudentFormState = {
   error?: string;
 };
 
-export async function getStudents(search?: string) {
+export async function getStudents(search?: string, batchId?: string) {
   const supabase = await createClient();
+
+  if (batchId) {
+    const { data: apps } = await supabase
+      .from("applications")
+      .select("student_id")
+      .eq("batch_id", batchId);
+
+    const studentIds = (apps ?? []).map((a) => a.student_id).filter(Boolean) as string[];
+
+    if (studentIds.length === 0) return [];
+
+    let query = supabase
+      .from("students")
+      .select(
+        `
+        id,
+        student_number,
+        legal_first_name,
+        legal_middle_name,
+        legal_last_name,
+        email,
+        phone,
+        city,
+        province,
+        created_at,
+        applications (
+          id,
+          status,
+          program_id,
+          programs (id, program_name, program_code),
+          batches (id, batch_name)
+        )
+      `
+      )
+      .in("id", studentIds)
+      .order("created_at", { ascending: false });
+
+    if (search && search.trim()) {
+      const term = `%${search.trim()}%`;
+      query = query.or(
+        `legal_first_name.ilike.${term},legal_last_name.ilike.${term},email.ilike.${term},phone.ilike.${term},student_number.ilike.${term}`
+      );
+    }
+
+    const { data } = await query;
+    return data ?? [];
+  }
 
   let query = supabase
     .from("students")
@@ -107,12 +154,19 @@ export async function getStudentById(studentId: string) {
   const applicationIds = (applications ?? []).map((a) => a.id);
 
   let checklists: Array<Record<string, unknown>> = [];
+  let salesChecklists: Array<Record<string, unknown>> = [];
   if (applicationIds.length > 0) {
     const { data: checklistData } = await supabase
       .from("admission_checklists")
       .select("*")
       .in("application_id", applicationIds);
     checklists = checklistData ?? [];
+
+    const { data: salesChecklistData } = await supabase
+      .from("sales_checklists")
+      .select("*")
+      .in("application_id", applicationIds);
+    salesChecklists = salesChecklistData ?? [];
   }
 
   let feeSchedules: Array<Record<string, unknown>> = [];
@@ -160,6 +214,7 @@ export async function getStudentById(studentId: string) {
     documents: documents ?? [],
     contracts: contracts ?? [],
     checklists,
+    salesChecklists,
     feeSchedules,
     installments,
     ownerProfiles,
