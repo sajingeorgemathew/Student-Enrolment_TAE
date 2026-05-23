@@ -4,6 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { getContractDetail } from "@/features/contracts/actions";
 import { ContractPreview } from "@/features/contracts/contract-preview";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 export default async function ContractPreviewPage({
   params,
@@ -11,12 +13,16 @@ export default async function ContractPreviewPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const data = await getContractDetail(applicationId);
+  const [data, profile] = await Promise.all([
+    getContractDetail(applicationId),
+    getUserProfile(),
+  ]);
 
   if (!data) {
     notFound();
   }
 
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
   const student = data.application.students;
   const program = data.application.programs;
 
@@ -59,7 +65,9 @@ export default async function ContractPreviewPage({
                 {data.contract.status}
               </span>
             )}
-            <GenerateWordButton applicationId={applicationId} />
+            {isAdmin && (
+              <GenerateWordButton applicationId={applicationId} />
+            )}
           </div>
         </div>
       </div>

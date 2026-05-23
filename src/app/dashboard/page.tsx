@@ -1,4 +1,5 @@
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 import {
   ClipboardList,
   Users,
@@ -11,7 +12,15 @@ import {
   Settings,
 } from "lucide-react";
 
-const primaryCards = [
+type DashCard = {
+  title: string;
+  description: string;
+  href: string;
+  icon: typeof BookOpen;
+  adminOnly?: boolean;
+};
+
+const primaryCards: DashCard[] = [
   {
     title: "Programs",
     description: "View programs and their batches",
@@ -32,7 +41,7 @@ const primaryCards = [
   },
   {
     title: "Intakes",
-    description: "Manage intake applications",
+    description: "View intake applications",
     href: "/dashboard/intake",
     icon: ClipboardList,
   },
@@ -41,10 +50,11 @@ const primaryCards = [
     description: "Checklists, fees, and admin tools",
     href: "/dashboard/admin",
     icon: Settings,
+    adminOnly: true,
   },
 ];
 
-const secondaryCards = [
+const secondaryCards: DashCard[] = [
   {
     title: "Documents",
     description: "All student documents",
@@ -82,6 +92,13 @@ export default async function DashboardPage() {
     ? `Signed in as ${profile.role}`
     : "Welcome to the TAE Student Enrolment system";
 
+  const role = profile?.role ?? null;
+  const isAdmin = isAdminOrSuper(role);
+
+  const visiblePrimary = primaryCards.filter(
+    (card) => !card.adminOnly || isAdmin
+  );
+
   return (
     <div>
       <div className="mb-8">
@@ -90,7 +107,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {primaryCards.map((card) => {
+        {visiblePrimary.map((card) => {
           const Icon = card.icon;
           return (
             <a

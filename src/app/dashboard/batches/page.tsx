@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Plus, Layers } from "lucide-react";
 import { getBatches } from "@/features/batches/actions";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const deliveryLabels: Record<string, string> = {
   in_person: "In Person",
@@ -15,7 +17,11 @@ export default async function BatchesPage({
 }) {
   const { programId } = await searchParams;
   const programFilter = typeof programId === "string" ? programId : undefined;
-  const batches = await getBatches(programFilter);
+  const [batches, profile] = await Promise.all([
+    getBatches(programFilter),
+    getUserProfile(),
+  ]);
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
   return (
     <div>
@@ -37,13 +43,15 @@ export default async function BatchesPage({
             </p>
           )}
         </div>
-        <Link
-          href="/dashboard/batches/new"
-          className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          New Batch
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/dashboard/batches/new"
+            className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            New Batch
+          </Link>
+        )}
       </div>
 
       {batches.length === 0 ? (
@@ -51,15 +59,19 @@ export default async function BatchesPage({
           <Layers className="mb-3 h-10 w-10 text-zinc-400" />
           <p className="text-sm font-medium text-zinc-600">No batches yet</p>
           <p className="mt-1 text-xs text-zinc-400">
-            Create your first batch to get started
+            {isAdmin
+              ? "Create your first batch to get started"
+              : "Batches will appear once they are created"}
           </p>
-          <Link
-            href="/dashboard/batches/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            <Plus className="h-4 w-4" />
-            New Batch
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/dashboard/batches/new"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              <Plus className="h-4 w-4" />
+              New Batch
+            </Link>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
@@ -146,12 +158,14 @@ export default async function BatchesPage({
                           >
                             Batch Students
                           </Link>
-                          <Link
-                            href={`/dashboard/batches/${batch.id}/edit`}
-                            className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
-                          >
-                            Edit
-                          </Link>
+                          {isAdmin && (
+                            <Link
+                              href={`/dashboard/batches/${batch.id}/edit`}
+                              className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                            >
+                              Edit
+                            </Link>
+                          )}
                         </div>
                       </td>
                     </tr>

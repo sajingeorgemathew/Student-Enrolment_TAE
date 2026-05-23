@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getIntakes } from "@/features/intake/actions";
 import { SendToAdminButton } from "@/features/intake/intake-status-action";
+import { getUserProfile } from "@/lib/profile";
+import { isSalesOrAdmin } from "@/lib/roles";
 
 const statusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -26,7 +28,11 @@ const statusColors: Record<string, string> = {
 };
 
 export default async function IntakePage() {
-  const intakes = await getIntakes();
+  const [intakes, profile] = await Promise.all([
+    getIntakes(),
+    getUserProfile(),
+  ]);
+  const canCreate = isSalesOrAdmin(profile?.role ?? null);
 
   return (
     <div>
@@ -34,16 +40,20 @@ export default async function IntakePage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Intakes</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Intake review and new student intake
+            {canCreate
+              ? "Intake review and new student intake"
+              : "View intake applications"}
           </p>
         </div>
-        <Link
-          href="/dashboard/intake/new"
-          className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          New Intake
-        </Link>
+        {canCreate && (
+          <Link
+            href="/dashboard/intake/new"
+            className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            New Intake
+          </Link>
+        )}
       </div>
 
       {intakes.length === 0 ? (
@@ -52,15 +62,19 @@ export default async function IntakePage() {
             No intake records yet
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Create your first intake to get started
+            {canCreate
+              ? "Create your first intake to get started"
+              : "Intakes will appear once they are created"}
           </p>
-          <Link
-            href="/dashboard/intake/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            <Plus className="h-4 w-4" />
-            New Intake
-          </Link>
+          {canCreate && (
+            <Link
+              href="/dashboard/intake/new"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              <Plus className="h-4 w-4" />
+              New Intake
+            </Link>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
@@ -109,7 +123,7 @@ export default async function IntakePage() {
                       <div className="text-sm font-medium text-zinc-900">
                         {student
                           ? `${student.legal_first_name} ${student.legal_last_name}`
-                          : "—"}
+                          : "--"}
                       </div>
                       {student?.email && (
                         <div className="text-xs text-zinc-500">
@@ -124,7 +138,7 @@ export default async function IntakePage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-zinc-900">
-                        {program ? program.program_name : "—"}
+                        {program ? program.program_name : "--"}
                       </div>
                       {batch && (
                         <div className="text-xs text-zinc-500">
@@ -145,7 +159,7 @@ export default async function IntakePage() {
                       {new Date(intake.created_at).toLocaleDateString("en-CA")}
                     </td>
                     <td className="px-4 py-3">
-                      {intake.status === "new_intake" && (
+                      {canCreate && intake.status === "new_intake" && (
                         <SendToAdminButton applicationId={intake.id} />
                       )}
                     </td>

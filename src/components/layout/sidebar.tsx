@@ -16,20 +16,38 @@ import {
   Settings,
 } from "lucide-react";
 
-const primaryNav = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: typeof LayoutDashboard;
+  minRole?: "sales" | "admin";
+};
+
+const primaryNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Programs", href: "/dashboard/programs", icon: BookOpen },
   { label: "Batches", href: "/dashboard/batches", icon: Layers },
   { label: "Students", href: "/dashboard/students", icon: Users },
   { label: "Intakes", href: "/dashboard/intake", icon: ClipboardList },
-  { label: "Admin", href: "/dashboard/admin", icon: Settings },
+  { label: "Admin", href: "/dashboard/admin", icon: Settings, minRole: "admin" },
 ];
 
-const secondaryNav = [
+const secondaryNav: NavItem[] = [
   { label: "Fees", href: "/dashboard/fees", icon: DollarSign },
   { label: "Checklists", href: "/dashboard/checklists", icon: ClipboardCheck },
   { label: "Contracts", href: "/dashboard/contracts", icon: ScrollText },
 ];
+
+function isNavVisible(item: NavItem, role: string | null): boolean {
+  if (!item.minRole) return true;
+  if (item.minRole === "admin") {
+    return role === "admin" || role === "super_admin";
+  }
+  if (item.minRole === "sales") {
+    return role === "sales" || role === "admin" || role === "super_admin";
+  }
+  return true;
+}
 
 interface SidebarProps {
   userEmail: string;
@@ -51,29 +69,31 @@ export function Sidebar({ userEmail, userRole, userFullName }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {primaryNav.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
+          {primaryNav
+            .filter((item) => isNavVisible(item, userRole))
+            .map((item) => {
+              const isActive =
+                item.href === "/dashboard"
+                  ? pathname === "/dashboard"
+                  : pathname.startsWith(item.href);
+              const Icon = item.icon;
 
-            return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-zinc-100 text-zinc-900"
-                      : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-                  }`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-zinc-100 text-zinc-900"
+                        : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
         </ul>
 
         <div className="mt-6 border-t border-zinc-100 pt-4">

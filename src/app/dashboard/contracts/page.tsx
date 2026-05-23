@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ScrollText } from "lucide-react";
 import { getApplicationsForContracts } from "@/features/contracts/actions";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const applicationStatusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -126,14 +128,20 @@ function computeReadinessSummary(app: {
 }
 
 export default async function ContractsPage() {
-  const applications = await getApplicationsForContracts();
+  const [applications, profile] = await Promise.all([
+    getApplicationsForContracts(),
+    getUserProfile(),
+  ]);
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-zinc-900">Contracts</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Preview and manage enrolment contracts for student applications
+          {isAdmin
+            ? "Preview and manage enrolment contracts for student applications"
+            : "View enrolment contract status for student applications"}
         </p>
       </div>
 
