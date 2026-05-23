@@ -16,6 +16,7 @@ const feeStatusLabels: Record<string, string> = {
   draft: "Draft",
   admin_review: "Admin Review",
   approved: "Approved",
+  reopened: "Reopened",
   archived: "Archived",
 };
 
@@ -23,6 +24,7 @@ const feeStatusColors: Record<string, string> = {
   draft: "bg-zinc-100 text-zinc-700",
   admin_review: "bg-amber-100 text-amber-800",
   approved: "bg-green-100 text-green-800",
+  reopened: "bg-amber-100 text-amber-800",
   archived: "bg-zinc-100 text-zinc-600",
 };
 

@@ -288,6 +288,15 @@ export async function saveFeeSchedule(
   revalidatePath("/dashboard/fees");
   revalidatePath(`/dashboard/fees/${applicationId}`);
 
+  const { data: appRow } = await supabase
+    .from("applications")
+    .select("student_id")
+    .eq("id", applicationId)
+    .single();
+  if (appRow?.student_id) {
+    revalidatePath(`/dashboard/students/${appRow.student_id}`);
+  }
+
   return { success: true };
 }
 
@@ -377,6 +386,74 @@ export async function approveFeeSchedule(
 
   revalidatePath("/dashboard/fees");
   revalidatePath(`/dashboard/fees/${applicationId}`);
+
+  const { data: appRow2 } = await supabase
+    .from("applications")
+    .select("student_id")
+    .eq("id", applicationId)
+    .single();
+  if (appRow2?.student_id) {
+    revalidatePath(`/dashboard/students/${appRow2.student_id}`);
+  }
+
+  return { success: true };
+}
+
+export async function reopenFeeSchedule(
+  feeScheduleId: string,
+  applicationId: string
+): Promise<FeeFormState> {
+  const profile = await getUserProfile();
+  if (!profile) {
+    return { success: false, error: "You must be logged in." };
+  }
+  if (!isAdminOrSuper(profile.role)) {
+    return { success: false, error: "Only admins can reopen fee schedules." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: schedule } = await supabase
+    .from("fee_schedules")
+    .select("status")
+    .eq("id", feeScheduleId)
+    .single();
+
+  if (!schedule) {
+    return { success: false, error: "Fee schedule not found." };
+  }
+
+  if (schedule.status !== "approved") {
+    return {
+      success: false,
+      error: "Only approved fee schedules can be reopened.",
+    };
+  }
+
+  const { error } = await supabase
+    .from("fee_schedules")
+    .update({
+      status: "reopened",
+      approved_by: null,
+      approved_at: null,
+    })
+    .eq("id", feeScheduleId);
+
+  if (error) {
+    return { success: false, error: "Could not reopen fee schedule." };
+  }
+
+  revalidatePath("/dashboard/fees");
+  revalidatePath(`/dashboard/fees/${applicationId}`);
+
+  const { data: appRow3 } = await supabase
+    .from("applications")
+    .select("student_id")
+    .eq("id", applicationId)
+    .single();
+  if (appRow3?.student_id) {
+    revalidatePath(`/dashboard/students/${appRow3.student_id}`);
+  }
 
   return { success: true };
 }

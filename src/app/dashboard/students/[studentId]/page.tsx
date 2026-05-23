@@ -10,6 +10,7 @@ import { ChecklistForm } from "@/features/checklists/checklist-form";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
 import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
 import { InlineReviewStatus } from "@/features/documents/inline-review-status";
+import { FeeApprovalControls } from "@/features/fees/fee-approval-controls";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
 import { getHubPrograms, getHubBatches } from "@/features/students/hub-actions";
@@ -101,6 +102,7 @@ const feeStatusLabels: Record<string, string> = {
   draft: "Draft",
   admin_review: "Admin Review",
   approved: "Approved",
+  reopened: "Reopened",
   archived: "Archived",
 };
 
@@ -108,6 +110,7 @@ const feeStatusColors: Record<string, string> = {
   draft: "bg-blue-100 text-blue-800",
   admin_review: "bg-amber-100 text-amber-800",
   approved: "bg-green-100 text-green-800",
+  reopened: "bg-amber-100 text-amber-800",
   archived: "bg-zinc-100 text-zinc-600",
 };
 
@@ -259,6 +262,65 @@ export default async function StudentDetailPage({
         return { allReady, missing, label, color };
       })()
     : null;
+
+  const salesChecklistSummary = latestSalesChecklist
+    ? (() => {
+        const items = [
+          { label: "Photo ID", status: latestSalesChecklist.photo_id },
+          { label: "Proof of Address", status: latestSalesChecklist.proof_of_address },
+          { label: "Diploma or Transcript", status: latestSalesChecklist.diploma_or_transcript },
+          { label: "English Proof", status: latestSalesChecklist.english_proof },
+          { label: "Immigration / Status Document", status: latestSalesChecklist.immigration_status_document },
+          { label: "Payment Proof / Deposit", status: latestSalesChecklist.payment_proof_deposit },
+          { label: "Other Documents", status: latestSalesChecklist.other_documents },
+        ];
+        const missing = items.filter(
+          (item) => item.status !== "received" && item.status !== "not_applicable"
+        );
+        const allReceived = missing.length === 0;
+        return { allReceived, missing };
+      })()
+    : null;
+
+  const feeStatus = latestFeeSchedule?.status as string | undefined;
+  const feeApproved = feeStatus === "approved";
+  const hasInstallments = feeInstallments.length > 0;
+
+  const readinessItems = latestApp
+    ? [
+        {
+          label: "Student info complete",
+          ready: !!(student.legal_first_name && student.legal_last_name && student.email),
+        },
+        {
+          label: "Batch assigned",
+          ready: !!batch,
+        },
+        {
+          label: "Documents available",
+          ready: documents.length > 0,
+        },
+        {
+          label: "Official checklist ready",
+          ready: checklistReadiness?.allReady ?? false,
+        },
+        {
+          label: "Fee schedule approved",
+          ready: feeApproved,
+        },
+        {
+          label: "Payment installments available",
+          ready: hasInstallments,
+        },
+        {
+          label: "Word contract available",
+          ready: !!latestContract,
+        },
+      ]
+    : [];
+
+  const readinessMissing = readinessItems.filter((item) => !item.ready);
+  const allReady = readinessItems.length > 0 && readinessMissing.length === 0;
 
   const canGenerateContract =
     isAdmin &&
@@ -535,6 +597,26 @@ export default async function StudentDetailPage({
               This is the sales-facing document checklist. The official admin
               checklist is separate.
             </p>
+            {salesChecklistSummary && (
+              salesChecklistSummary.allReceived ? (
+                <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3">
+                  <p className="text-sm font-medium text-green-800">
+                    All intake documents received or not applicable
+                  </p>
+                </div>
+              ) : (
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-sm font-medium text-amber-800 mb-1">Missing or pending:</p>
+                  <ul className="text-sm text-amber-700">
+                    {salesChecklistSummary.missing.map((item) => (
+                      <li key={item.label}>
+                        - {item.label}: {item.status === "not_received" ? "not received" : item.status === "not_sure" ? "not sure" : item.status.replace(/_/g, " ")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            )}
             <SalesChecklistForm
               key={latestSalesChecklist?.updated_at ?? "new"}
               applicationId={latestApp.id}
@@ -922,16 +1004,26 @@ export default async function StudentDetailPage({
         {/* 9. Fees and Payment Schedule */}
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
-            <h2 className="text-base font-semibold text-zinc-900">
-              Fees and Payment Schedule
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-semibold text-zinc-900">
+                Fees and Payment Schedule
+              </h2>
+              {latestFeeSchedule && (
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${feeStatusColors[latestFeeSchedule.status as string] ?? "bg-zinc-100 text-zinc-600"}`}
+                >
+                  {feeStatusLabels[latestFeeSchedule.status as string] ??
+                    (latestFeeSchedule.status as string)}
+                </span>
+              )}
+            </div>
             {latestApp && isAdmin && (
               <Link
                 href={`/dashboard/fees/${latestApp.id}`}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Edit Fees
+                {latestFeeSchedule ? "Edit Fees" : "Create Fee Schedule"}
               </Link>
             )}
           </div>
@@ -940,14 +1032,22 @@ export default async function StudentDetailPage({
               <EmptyState message="No fee schedule created yet." />
             ) : (
               <>
-                <div className="mb-4">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${feeStatusColors[latestFeeSchedule.status as string] ?? "bg-zinc-100 text-zinc-600"}`}
-                  >
-                    {feeStatusLabels[latestFeeSchedule.status as string] ??
-                      (latestFeeSchedule.status as string)}
-                  </span>
-                </div>
+                {isSalesOrAbove && latestApp && (
+                  <div className="mb-4">
+                    <div className="text-xs text-zinc-500">
+                      {latestApp.price_discussed != null && (
+                        <span className="mr-4">
+                          Price discussed: {formatCurrency(Number(latestApp.price_discussed))}
+                        </span>
+                      )}
+                      {latestApp.deposit_discussed != null && (
+                        <span>
+                          Deposit discussed: {formatCurrency(Number(latestApp.deposit_discussed))}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <FieldGrid>
                   <Field
                     label="Tuition Fee"
@@ -1044,12 +1144,90 @@ export default async function StudentDetailPage({
                     </div>
                   </div>
                 )}
+
+                {latestApp && (
+                  <FeeApprovalControls
+                    feeScheduleId={latestFeeSchedule.id as string}
+                    applicationId={latestApp.id}
+                    status={latestFeeSchedule.status as string}
+                    approvedBy={
+                      latestFeeSchedule.approved_by
+                        ? ownerProfiles[latestFeeSchedule.approved_by as string] ?? null
+                        : null
+                    }
+                    approvedAt={latestFeeSchedule.approved_at as string | null}
+                    isAdmin={isAdmin}
+                  />
+                )}
               </>
             )}
           </div>
         </div>
 
-        {/* 10. Contract - Word Export */}
+        {/* 10. Ready for Contract Summary */}
+        {latestApp && (
+          <div className="rounded-lg border border-zinc-200 bg-white">
+            <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-base font-semibold text-zinc-900">
+                  Ready for Contract
+                </h2>
+                {allReady ? (
+                  <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                    Ready
+                  </span>
+                ) : (
+                  <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                    Not Ready
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              {allReady ? (
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3">
+                  <p className="text-sm font-medium text-green-800">
+                    All items are complete. This student file is ready for contract generation.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                    <p className="text-sm font-medium text-amber-800 mb-1">
+                      Missing items:
+                    </p>
+                    <ul className="text-sm text-amber-700">
+                      {readinessMissing.map((item) => (
+                        <li key={item.label}>- {item.label}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              )}
+              <div className="mt-4 space-y-2">
+                {readinessItems.map((item) => (
+                  <div
+                    key={item.label}
+                    className="flex items-center justify-between rounded-md border border-zinc-100 px-4 py-2.5"
+                  >
+                    <span className="text-sm text-zinc-700">{item.label}</span>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        item.ready
+                          ? "bg-green-100 text-green-800"
+                          : "bg-zinc-100 text-zinc-600"
+                      }`}
+                    >
+                      {item.ready ? "Complete" : "Missing"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 11. Contract - Word Export */}
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
             <h2 className="text-base font-semibold text-zinc-900">
@@ -1118,14 +1296,14 @@ export default async function StudentDetailPage({
           </div>
         </div>
 
-        {/* 11. Internal Notes Placeholder */}
+        {/* 12. Internal Notes Placeholder */}
         {isAdmin && (
           <Section title="Internal Notes">
             <EmptyState message="Internal notes will be available in a future update." />
           </Section>
         )}
 
-        {/* 12. Activity / Audit Placeholder */}
+        {/* 13. Activity / Audit Placeholder */}
         {isAdmin && (
           <Section title="Activity / Audit Log">
             <EmptyState message="Activity and audit log will be available in a future update." />
