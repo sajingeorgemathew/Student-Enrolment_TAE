@@ -11,7 +11,7 @@ export default async function ProgramsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-900">Programs</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Manage academic programs and their default fees
+            View programs and their batches
           </p>
         </div>
         <Link
@@ -103,12 +103,20 @@ export default async function ProgramsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/dashboard/programs/${program.id}/edit`}
-                        className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
-                      >
-                        Edit
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/dashboard/batches?programId=${program.id}`}
+                          className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                        >
+                          View Batches
+                        </Link>
+                        <Link
+                          href={`/dashboard/programs/${program.id}/edit`}
+                          className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                        >
+                          Edit
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

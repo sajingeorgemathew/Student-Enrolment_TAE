@@ -14,17 +14,22 @@ import {
   DollarSign,
   ScrollText,
   LogOut,
+  Settings,
 } from "lucide-react";
 
-const navItems = [
+const primaryNav = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Intake", href: "/dashboard/intake", icon: ClipboardList },
-  { label: "Students", href: "/dashboard/students", icon: Users },
   { label: "Programs", href: "/dashboard/programs", icon: BookOpen },
   { label: "Batches", href: "/dashboard/batches", icon: Layers },
-  { label: "Checklists", href: "/dashboard/checklists", icon: ClipboardCheck },
+  { label: "Students", href: "/dashboard/students", icon: Users },
+  { label: "Intakes", href: "/dashboard/intake", icon: ClipboardList },
+  { label: "Admin", href: "/dashboard/admin", icon: Settings },
+];
+
+const secondaryNav = [
   { label: "Documents", href: "/dashboard/documents", icon: FileText },
   { label: "Fees", href: "/dashboard/fees", icon: DollarSign },
+  { label: "Checklists", href: "/dashboard/checklists", icon: ClipboardCheck },
   { label: "Contracts", href: "/dashboard/contracts", icon: ScrollText },
 ];
 
@@ -48,7 +53,7 @@ export function Sidebar({ userEmail, userRole, userFullName }: SidebarProps) {
 
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {navItems.map((item) => {
+          {primaryNav.map((item) => {
             const isActive =
               item.href === "/dashboard"
                 ? pathname === "/dashboard"
@@ -72,6 +77,34 @@ export function Sidebar({ userEmail, userRole, userFullName }: SidebarProps) {
             );
           })}
         </ul>
+
+        <div className="mt-6 border-t border-zinc-100 pt-4">
+          <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Module Views
+          </p>
+          <ul className="space-y-1">
+            {secondaryNav.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              const Icon = item.icon;
+
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "bg-zinc-100 text-zinc-900"
+                        : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       </nav>
 
       <div className="border-t border-zinc-200 px-4 py-4">

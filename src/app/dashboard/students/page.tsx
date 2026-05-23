@@ -30,17 +30,29 @@ export default async function StudentsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { search } = await searchParams;
+  const { search, batchId } = await searchParams;
   const searchTerm = typeof search === "string" ? search : undefined;
-  const students = await getStudents(searchTerm);
+  const batchFilter = typeof batchId === "string" ? batchId : undefined;
+  const students = await getStudents(searchTerm, batchFilter);
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-zinc-900">Students</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          View and manage student records
+          Search students and open student files
         </p>
+        {batchFilter && (
+          <p className="mt-1 text-xs text-zinc-400">
+            Showing batch students.{" "}
+            <Link
+              href="/dashboard/students"
+              className="font-medium text-zinc-600 hover:text-zinc-900"
+            >
+              Show all students
+            </Link>
+          </p>
+        )}
       </div>
 
       <div className="mb-6">
@@ -82,6 +94,9 @@ export default async function StudentsPage({
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                     Created
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -173,6 +188,14 @@ export default async function StudentsPage({
                         {new Date(student.created_at).toLocaleDateString(
                           "en-CA"
                         )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/dashboard/students/${student.id}`}
+                          className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                        >
+                          Open Student File
+                        </Link>
                       </td>
                     </tr>
                   );

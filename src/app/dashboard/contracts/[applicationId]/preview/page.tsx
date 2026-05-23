@@ -23,13 +23,24 @@ export default async function ContractPreviewPage({
   return (
     <div>
       <div className="no-print mb-8">
-        <Link
-          href="/dashboard/contracts"
-          className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Contracts
-        </Link>
+        <div className="mb-4 flex items-center gap-4">
+          <Link
+            href="/dashboard/contracts"
+            className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            All Contracts
+          </Link>
+          {student && (
+            <Link
+              href={`/dashboard/students/${student.id}`}
+              className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Student File
+            </Link>
+          )}
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">
