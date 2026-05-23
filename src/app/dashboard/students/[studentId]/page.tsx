@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Plus, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getStudentById } from "@/features/students/actions";
 import { StudentEditForm } from "@/features/students/student-edit-form";
 import { SalesIntakeForm } from "@/features/students/sales-intake-form";
 import { AdminApplicationForm } from "@/features/students/admin-application-form";
 import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
+import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
+import { InlineReviewStatus } from "@/features/documents/inline-review-status";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
 import { getHubPrograms, getHubBatches } from "@/features/students/hub-actions";
@@ -496,7 +498,7 @@ export default async function StudentDetailPage({
             <SalesChecklistForm
               applicationId={latestApp.id}
               checklist={latestSalesChecklist ?? null}
-              readOnly={isViewer || isAdmin}
+              readOnly={isViewer}
             />
           </Section>
         )}
@@ -600,19 +602,30 @@ export default async function StudentDetailPage({
 
         {/* 7. Documents */}
         <div className="rounded-lg border border-zinc-200 bg-white">
-          <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+          <div className="border-b border-zinc-200 px-6 py-4">
             <h2 className="text-base font-semibold text-zinc-900">Documents</h2>
-            {isSalesOrAbove && (
-              <Link
-                href={`/dashboard/documents/new?studentId=${studentId}`}
-                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Upload Document
-              </Link>
-            )}
           </div>
           <div className="px-6 py-5">
+            {isSalesOrAbove && (
+              <div className="mb-5">
+                <EmbeddedDocumentUpload
+                  studentId={studentId}
+                  applications={(applications ?? []).map((app) => ({
+                    id: app.id,
+                    status: app.status,
+                    programs: app.programs as {
+                      id: string;
+                      program_code: string;
+                      program_name: string;
+                    } | null,
+                    batches: app.batches as {
+                      id: string;
+                      batch_name: string;
+                    } | null,
+                  }))}
+                />
+              </div>
+            )}
             {documents.length === 0 ? (
               <EmptyState message="No documents uploaded yet." />
             ) : (
@@ -625,6 +638,9 @@ export default async function StudentDetailPage({
                       </th>
                       <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         File Name
+                      </th>
+                      <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Application
                       </th>
                       <th className="px-4 py-2.5 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         Status
@@ -641,40 +657,64 @@ export default async function StudentDetailPage({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {documents.map((doc) => (
-                      <tr key={doc.id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-2.5 text-sm text-zinc-900">
-                          {documentTypeLabels[doc.document_type] ??
-                            doc.document_type.replace(/_/g, " ")}
-                        </td>
-                        <td className="max-w-48 truncate px-4 py-2.5 text-sm text-zinc-600">
-                          {doc.file_name}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${documentStatusColors[doc.review_status] ?? "bg-zinc-100 text-zinc-600"}`}
-                          >
-                            {documentStatusLabels[doc.review_status] ??
-                              doc.review_status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-zinc-500">
-                          {new Date(doc.created_at).toLocaleDateString("en-CA")}
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-zinc-500">
-                          {uploadedByTypeLabels[doc.uploaded_by_type] ??
-                            doc.uploaded_by_type}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <Link
-                            href={`/dashboard/documents/${doc.id}`}
-                            className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
-                          >
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
+                    {documents.map((doc) => {
+                      const docApp = doc.applications as unknown as {
+                        id: string;
+                        status: string;
+                        programs: {
+                          id: string;
+                          program_code: string;
+                          program_name: string;
+                        } | null;
+                      } | null;
+
+                      return (
+                        <tr key={doc.id} className="hover:bg-zinc-50">
+                          <td className="px-4 py-2.5 text-sm text-zinc-900">
+                            {documentTypeLabels[doc.document_type] ??
+                              doc.document_type.replace(/_/g, " ")}
+                          </td>
+                          <td className="max-w-48 truncate px-4 py-2.5 text-sm text-zinc-600">
+                            {doc.file_name}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-500">
+                            {docApp?.programs?.program_code ?? "--"}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            {isAdmin ? (
+                              <InlineReviewStatus
+                                documentId={doc.id}
+                                currentStatus={doc.review_status}
+                              />
+                            ) : (
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${documentStatusColors[doc.review_status] ?? "bg-zinc-100 text-zinc-600"}`}
+                              >
+                                {documentStatusLabels[doc.review_status] ??
+                                  doc.review_status}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-500">
+                            {new Date(doc.created_at).toLocaleDateString(
+                              "en-CA"
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-sm text-zinc-500">
+                            {uploadedByTypeLabels[doc.uploaded_by_type] ??
+                              doc.uploaded_by_type}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <Link
+                              href={`/dashboard/documents/${doc.id}`}
+                              className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                            >
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

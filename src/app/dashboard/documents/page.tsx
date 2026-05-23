@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText } from "lucide-react";
 import { getDocuments } from "@/features/documents/actions";
 
 const reviewStatusLabels: Record<string, string> = {
@@ -45,13 +45,6 @@ export default async function DocumentsPage() {
             Track and manage student documents
           </p>
         </div>
-        <Link
-          href="/dashboard/documents/new"
-          className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-        >
-          <Plus className="h-4 w-4" />
-          Upload Document
-        </Link>
       </div>
 
       {documents.length === 0 ? (
@@ -61,15 +54,8 @@ export default async function DocumentsPage() {
             No documents uploaded yet
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Upload a document to get started
+            Documents are uploaded from the student file page.
           </p>
-          <Link
-            href="/dashboard/documents/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            <Plus className="h-4 w-4" />
-            Upload Document
-          </Link>
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
