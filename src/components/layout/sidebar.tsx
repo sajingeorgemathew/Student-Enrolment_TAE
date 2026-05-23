@@ -10,7 +10,6 @@ import {
   Users,
   BookOpen,
   Layers,
-  FileText,
   DollarSign,
   ScrollText,
   LogOut,
@@ -27,7 +26,6 @@ const primaryNav = [
 ];
 
 const secondaryNav = [
-  { label: "Documents", href: "/dashboard/documents", icon: FileText },
   { label: "Fees", href: "/dashboard/fees", icon: DollarSign },
   { label: "Checklists", href: "/dashboard/checklists", icon: ClipboardCheck },
   { label: "Contracts", href: "/dashboard/contracts", icon: ScrollText },

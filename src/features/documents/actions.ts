@@ -263,8 +263,17 @@ export async function updateDocumentReview(
     return { success: false, error: "Could not update document review." };
   }
 
+  const { data: docRecord } = await supabase
+    .from("student_documents")
+    .select("student_id")
+    .eq("id", documentId)
+    .single();
+
   revalidatePath("/dashboard/documents");
   revalidatePath(`/dashboard/documents/${documentId}`);
+  if (docRecord?.student_id) {
+    revalidatePath(`/dashboard/students/${docRecord.student_id}`);
+  }
 
   return { success: true };
 }
