@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ClipboardCheck } from "lucide-react";
 import { getApplicationsForChecklists } from "@/features/checklists/actions";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const applicationStatusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -20,14 +22,34 @@ const checklistItemStatusLabels: Record<string, string> = {
   needs_correction: "Needs Correction",
   not_started: "Not Started",
   in_review: "In Review",
+  not_applicable: "Not Applicable",
 };
 
-function computeReadiness(checklist: {
+type ChecklistRow = {
+  id: string;
   photo_id_status: string | null;
   address_proof_status: string | null;
+  academic_route: string | null;
   academic_status: string | null;
+  english_route: string | null;
   english_status: string | null;
-} | null): { label: string; color: string } {
+};
+
+function extractChecklist(raw: unknown): ChecklistRow | null {
+  if (!raw) return null;
+  if (Array.isArray(raw)) {
+    return (raw[0] as ChecklistRow) ?? null;
+  }
+  if (typeof raw === "object" && "id" in (raw as Record<string, unknown>)) {
+    return raw as ChecklistRow;
+  }
+  return null;
+}
+
+function computeReadiness(checklist: ChecklistRow | null): {
+  label: string;
+  color: string;
+} {
   if (!checklist) {
     return { label: "Not Created", color: "bg-zinc-100 text-zinc-600" };
   }
@@ -39,11 +61,10 @@ function computeReadiness(checklist: {
     checklist.english_status,
   ];
 
-  const allAccepted = statuses.every((s) => s === "accepted");
-  const hasCorrection = statuses.some((s) => s === "needs_correction");
-  const hasInReview = statuses.some(
-    (s) => s === "in_review" || s === "uploaded"
+  const allAccepted = statuses.every(
+    (s) => s === "accepted" || s === "not_applicable"
   );
+  const hasCorrection = statuses.some((s) => s === "needs_correction");
 
   if (allAccepted) {
     return { label: "Ready", color: "bg-green-100 text-green-800" };
@@ -54,14 +75,15 @@ function computeReadiness(checklist: {
       color: "bg-orange-100 text-orange-800",
     };
   }
-  if (hasInReview) {
-    return { label: "In Progress", color: "bg-amber-100 text-amber-800" };
-  }
-  return { label: "Incomplete", color: "bg-zinc-100 text-zinc-700" };
+  return { label: "In Progress", color: "bg-amber-100 text-amber-800" };
 }
 
 export default async function ChecklistsPage() {
-  const applications = await getApplicationsForChecklists();
+  const [applications, profile] = await Promise.all([
+    getApplicationsForChecklists(),
+    getUserProfile(),
+  ]);
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
   return (
     <div>
@@ -134,17 +156,9 @@ export default async function ChecklistsPage() {
                     id: string;
                     batch_name: string;
                   } | null;
-                  const checklistArr =
-                    app.admission_checklists as unknown as Array<{
-                      id: string;
-                      photo_id_status: string | null;
-                      address_proof_status: string | null;
-                      academic_route: string | null;
-                      academic_status: string | null;
-                      english_route: string | null;
-                      english_status: string | null;
-                    }>;
-                  const checklist = checklistArr?.[0] ?? null;
+                  const checklist = extractChecklist(
+                    app.admission_checklists
+                  );
                   const readiness = computeReadiness(checklist);
 
                   return (
@@ -215,7 +229,13 @@ export default async function ChecklistsPage() {
                           href={`/dashboard/checklists/${app.id}`}
                           className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
                         >
-                          {checklist ? "View" : "Create"}
+                          {checklist
+                            ? isAdmin
+                              ? "Edit"
+                              : "View"
+                            : isAdmin
+                              ? "Create"
+                              : "View"}
                         </Link>
                       </td>
                     </tr>

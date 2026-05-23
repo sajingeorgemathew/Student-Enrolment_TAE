@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getChecklistDetail } from "@/features/checklists/actions";
 import { ChecklistForm } from "@/features/checklists/checklist-form";
-import { CreateChecklistButton } from "@/features/checklists/create-checklist-button";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const applicationStatusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -51,24 +52,30 @@ function computeReadiness(checklist: {
     {
       label: "Photo ID",
       status: checklist.photo_id_status ?? "not_received",
-      ready: checklist.photo_id_status === "accepted",
+      ready:
+        checklist.photo_id_status === "accepted" ||
+        checklist.photo_id_status === "not_applicable",
     },
     {
       label: "Address Proof",
       status: checklist.address_proof_status ?? "not_received",
-      ready: checklist.address_proof_status === "accepted",
+      ready:
+        checklist.address_proof_status === "accepted" ||
+        checklist.address_proof_status === "not_applicable",
     },
     {
       label: "Academic Requirement",
       status: checklist.academic_status ?? "not_started",
-      ready: checklist.academic_status === "accepted",
+      ready:
+        checklist.academic_status === "accepted" ||
+        checklist.academic_status === "not_applicable",
     },
     {
       label: "English Proficiency",
       status: checklist.english_status ?? "not_started",
       ready:
         checklist.english_status === "accepted" ||
-        checklist.english_status === "not_required",
+        checklist.english_status === "not_applicable",
     },
   ];
 }
@@ -81,6 +88,7 @@ const readinessStatusLabels: Record<string, string> = {
   not_started: "Not Started",
   in_review: "In Review",
   not_required: "Not Required",
+  not_applicable: "Not Applicable",
 };
 
 export default async function ChecklistDetailPage({
@@ -89,13 +97,18 @@ export default async function ChecklistDetailPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const data = await getChecklistDetail(applicationId);
+  const [data, profile] = await Promise.all([
+    getChecklistDetail(applicationId),
+    getUserProfile(),
+  ]);
 
   if (!data) {
     notFound();
   }
 
   const { application, checklist, documents } = data;
+  const role = profile?.role ?? null;
+  const isAdmin = isAdminOrSuper(role);
 
   const student = application.students as unknown as {
     id: string;
@@ -261,15 +274,19 @@ export default async function ChecklistDetailPage({
                 {allReady ? (
                   <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3">
                     <p className="text-sm font-medium text-green-800">
-                      All admission requirements are met. This application is
-                      ready for contract preparation.
+                      Checklist ready
                     </p>
                   </div>
                 ) : (
                   <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-                    <p className="text-sm font-medium text-amber-800">
-                      Some admission requirements are not yet complete.
-                    </p>
+                    <p className="text-sm font-medium text-amber-800 mb-1">Missing:</p>
+                    <ul className="text-sm text-amber-700">
+                      {readinessItems
+                        .filter((item) => !item.ready)
+                        .map((item) => (
+                          <li key={item.label}>- {item.label} is not accepted</li>
+                        ))}
+                    </ul>
                   </div>
                 )}
               </div>
@@ -301,7 +318,7 @@ export default async function ChecklistDetailPage({
               )}
             </div>
           ) : (
-            <EmptyState message="Checklist has not been created yet." />
+            <EmptyState message="Checklist has not been saved yet. Use the form below to save." />
           )}
         </Section>
 
@@ -363,15 +380,23 @@ export default async function ChecklistDetailPage({
         </Section>
 
         <Section title="Admission Checklist">
-          {checklist ? (
-            <ChecklistForm applicationId={applicationId} checklist={checklist} />
+          {isAdmin ? (
+            <>
+              {!checklist && (
+                <p className="mb-4 text-sm text-zinc-500">
+                  No checklist exists yet. Fill in the form and save to create one.
+                </p>
+              )}
+              <ChecklistForm
+                key={checklist?.admin_verified_at ?? "new"}
+                applicationId={applicationId}
+                checklist={checklist}
+              />
+            </>
           ) : (
-            <div className="text-center py-8">
-              <p className="mb-4 text-sm text-zinc-500">
-                No checklist exists for this application yet.
-              </p>
-              <CreateChecklistButton applicationId={applicationId} />
-            </div>
+            <p className="text-sm text-zinc-500">
+              Only admin users can edit the admission checklist.
+            </p>
           )}
         </Section>
       </div>

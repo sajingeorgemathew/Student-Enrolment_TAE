@@ -6,6 +6,7 @@ import { StudentEditForm } from "@/features/students/student-edit-form";
 import { SalesIntakeForm } from "@/features/students/sales-intake-form";
 import { AdminApplicationForm } from "@/features/students/admin-application-form";
 import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
+import { ChecklistForm } from "@/features/checklists/checklist-form";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
 import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
 import { InlineReviewStatus } from "@/features/documents/inline-review-status";
@@ -44,6 +45,7 @@ const checklistStatusLabels: Record<string, string> = {
   needs_correction: "Needs Correction",
   not_started: "Not Started",
   in_review: "In Review",
+  not_applicable: "Not Applicable",
 };
 
 const documentStatusLabels: Record<string, string> = {
@@ -183,6 +185,7 @@ export default async function StudentDetailPage({
     payment_proof_deposit: string;
     other_documents: string;
     notes: string | null;
+    updated_at: string;
   } | undefined;
 
   const latestFeeSchedule = feeSchedules.find(
@@ -227,6 +230,35 @@ export default async function StudentDetailPage({
   if (latestApp) {
     transferHistory = await getBatchTransferHistory(studentId);
   }
+
+  const checklistReadiness = latestChecklist
+    ? (() => {
+        const items = [
+          { label: "Photo ID", status: latestChecklist.photo_id_status as string | null },
+          { label: "Address Proof", status: latestChecklist.address_proof_status as string | null },
+          { label: "Academic Requirement", status: latestChecklist.academic_status as string | null },
+          { label: "English Requirement", status: latestChecklist.english_status as string | null },
+        ];
+        const missing = items.filter(
+          (item) => item.status !== "accepted" && item.status !== "not_applicable"
+        );
+        const hasCorrection = missing.some((item) => item.status === "needs_correction");
+        const allReady = missing.length === 0;
+        let label: string;
+        let color: string;
+        if (allReady) {
+          label = "Ready";
+          color = "bg-green-100 text-green-800";
+        } else if (hasCorrection) {
+          label = "Needs Correction";
+          color = "bg-orange-100 text-orange-800";
+        } else {
+          label = "In Progress";
+          color = "bg-amber-100 text-amber-800";
+        }
+        return { allReady, missing, label, color };
+      })()
+    : null;
 
   const canGenerateContract =
     isAdmin &&
@@ -496,14 +528,15 @@ export default async function StudentDetailPage({
           </Section>
         )}
 
-        {/* 4. Sales Checklist */}
+        {/* 4. Sales Intake Checklist */}
         {(isSalesOrAbove || isViewer) && latestApp && (
-          <Section title="Sales Checklist">
+          <Section title="Sales Intake Checklist">
             <p className="mb-4 text-xs text-zinc-400">
               This is the sales-facing document checklist. The official admin
               checklist is separate.
             </p>
             <SalesChecklistForm
+              key={latestSalesChecklist?.updated_at ?? "new"}
               applicationId={latestApp.id}
               checklist={latestSalesChecklist ?? null}
               readOnly={isViewer}
@@ -730,96 +763,158 @@ export default async function StudentDetailPage({
           </div>
         </div>
 
-        {/* 8. Admission and English Checklist */}
+        {/* 8. Official Admin Checklist */}
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
-            <h2 className="text-base font-semibold text-zinc-900">
-              Official Checklist - Admission and English
-            </h2>
-            {latestApp && isAdmin && (
+            <div className="flex items-center gap-3">
+              <h2 className="text-base font-semibold text-zinc-900">
+                Official Checklist - Admission and English
+              </h2>
+              {checklistReadiness && (
+                <span
+                  className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${checklistReadiness.color}`}
+                >
+                  {checklistReadiness.label}
+                </span>
+              )}
+            </div>
+            {latestApp && (
               <Link
                 href={`/dashboard/checklists/${latestApp.id}`}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                Edit Checklist
+                Full View
               </Link>
             )}
           </div>
           <div className="px-6 py-5">
-            {!latestChecklist ? (
-              <EmptyState message="No admission checklist created yet." />
+            {!latestApp ? (
+              <EmptyState message="No application found." />
             ) : (
-              <FieldGrid>
-                <Field
-                  label="Photo ID"
-                  value={
-                    checklistStatusLabels[
-                      latestChecklist.photo_id_status as string
-                    ] ?? (latestChecklist.photo_id_status as string)
-                  }
-                />
-                <Field
-                  label="Address Proof"
-                  value={
-                    checklistStatusLabels[
-                      latestChecklist.address_proof_status as string
-                    ] ?? (latestChecklist.address_proof_status as string)
-                  }
-                />
-                <Field
-                  label="Academic Route"
-                  value={
-                    (latestChecklist.academic_route as string)?.replace(
-                      /_/g,
-                      " "
-                    ) ?? null
-                  }
-                />
-                <Field
-                  label="Academic Status"
-                  value={
-                    checklistStatusLabels[
-                      latestChecklist.academic_status as string
-                    ] ?? (latestChecklist.academic_status as string)
-                  }
-                />
-                <Field
-                  label="English Route"
-                  value={
-                    (latestChecklist.english_route as string)?.replace(
-                      /_/g,
-                      " "
-                    ) ?? null
-                  }
-                />
-                <Field
-                  label="English Status"
-                  value={
-                    checklistStatusLabels[
-                      latestChecklist.english_status as string
-                    ] ?? (latestChecklist.english_status as string)
-                  }
-                />
-                <Field
-                  label="English Score"
-                  value={latestChecklist.english_score as string | null}
-                />
-                {((latestChecklist.academic_notes as string) ||
-                  (latestChecklist.english_notes as string)) && (
-                  <Field
-                    label="Notes"
-                    value={
-                      [
-                        latestChecklist.academic_notes as string | null,
-                        latestChecklist.english_notes as string | null,
-                      ]
-                        .filter(Boolean)
-                        .join(" | ") || null
-                    }
-                  />
+              <>
+                {checklistReadiness && (
+                  checklistReadiness.allReady ? (
+                    <div className="mb-4 rounded-md border border-green-200 bg-green-50 px-4 py-3">
+                      <p className="text-sm font-medium text-green-800">
+                        Checklist ready
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                      <p className="text-sm font-medium text-amber-800 mb-1">Missing:</p>
+                      <ul className="text-sm text-amber-700">
+                        {checklistReadiness.missing.map((item) => (
+                          <li key={item.label}>- {item.label} is not accepted</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
                 )}
-              </FieldGrid>
+                {isAdmin ? (
+                  <>
+                    <p className="mb-4 text-xs text-zinc-400">
+                      This is the official admin checklist. Sales cannot edit this section.
+                    </p>
+                    <ChecklistForm
+                      key={(latestChecklist?.admin_verified_at as string | undefined) ?? "new"}
+                      applicationId={latestApp.id}
+                      checklist={
+                        latestChecklist
+                          ? {
+                              id: latestChecklist.id as string,
+                              application_id: latestChecklist.application_id as string,
+                              photo_id_status: latestChecklist.photo_id_status as string | null,
+                              address_proof_status: latestChecklist.address_proof_status as string | null,
+                              academic_route: latestChecklist.academic_route as string | null,
+                              academic_status: latestChecklist.academic_status as string | null,
+                              academic_notes: latestChecklist.academic_notes as string | null,
+                              english_route: latestChecklist.english_route as string | null,
+                              english_status: latestChecklist.english_status as string | null,
+                              english_score: latestChecklist.english_score as string | null,
+                              english_notes: latestChecklist.english_notes as string | null,
+                              admin_verified_by: latestChecklist.admin_verified_by as string | null,
+                              admin_verified_at: latestChecklist.admin_verified_at as string | null,
+                            }
+                          : null
+                      }
+                    />
+                  </>
+                ) : !latestChecklist ? (
+                  <EmptyState message="No admission checklist created yet." />
+                ) : (
+                  <FieldGrid>
+                    <Field
+                      label="Photo ID"
+                      value={
+                        checklistStatusLabels[
+                          latestChecklist.photo_id_status as string
+                        ] ?? (latestChecklist.photo_id_status as string)
+                      }
+                    />
+                    <Field
+                      label="Address Proof"
+                      value={
+                        checklistStatusLabels[
+                          latestChecklist.address_proof_status as string
+                        ] ?? (latestChecklist.address_proof_status as string)
+                      }
+                    />
+                    <Field
+                      label="Academic Route"
+                      value={
+                        (latestChecklist.academic_route as string)?.replace(
+                          /_/g,
+                          " "
+                        ) ?? null
+                      }
+                    />
+                    <Field
+                      label="Academic Status"
+                      value={
+                        checklistStatusLabels[
+                          latestChecklist.academic_status as string
+                        ] ?? (latestChecklist.academic_status as string)
+                      }
+                    />
+                    <Field
+                      label="English Route"
+                      value={
+                        (latestChecklist.english_route as string)?.replace(
+                          /_/g,
+                          " "
+                        ) ?? null
+                      }
+                    />
+                    <Field
+                      label="English Status"
+                      value={
+                        checklistStatusLabels[
+                          latestChecklist.english_status as string
+                        ] ?? (latestChecklist.english_status as string)
+                      }
+                    />
+                    <Field
+                      label="English Score"
+                      value={latestChecklist.english_score as string | null}
+                    />
+                    {((latestChecklist.academic_notes as string) ||
+                      (latestChecklist.english_notes as string)) && (
+                      <Field
+                        label="Notes"
+                        value={
+                          [
+                            latestChecklist.academic_notes as string | null,
+                            latestChecklist.english_notes as string | null,
+                          ]
+                            .filter(Boolean)
+                            .join(" | ") || null
+                        }
+                      />
+                    )}
+                  </FieldGrid>
+                )}
+              </>
             )}
           </div>
         </div>

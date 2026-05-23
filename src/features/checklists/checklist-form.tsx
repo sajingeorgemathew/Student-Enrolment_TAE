@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
-import { updateChecklist } from "@/features/checklists/actions";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { saveAdmissionChecklist } from "@/features/checklists/actions";
 import type { ChecklistFormState } from "@/features/checklists/actions";
 
 interface Checklist {
@@ -22,7 +23,7 @@ interface Checklist {
 
 interface Props {
   applicationId: string;
-  checklist: Checklist;
+  checklist: Checklist | null;
 }
 
 const idStatusOptions = [
@@ -30,6 +31,7 @@ const idStatusOptions = [
   { value: "uploaded", label: "Uploaded" },
   { value: "accepted", label: "Accepted" },
   { value: "needs_correction", label: "Needs Correction" },
+  { value: "not_applicable", label: "Not Applicable" },
 ];
 
 const academicRouteOptions = [
@@ -44,6 +46,7 @@ const academicStatusOptions = [
   { value: "in_review", label: "In Review" },
   { value: "accepted", label: "Accepted" },
   { value: "needs_correction", label: "Needs Correction" },
+  { value: "not_applicable", label: "Not Applicable" },
 ];
 
 const englishRouteOptions = [
@@ -72,19 +75,26 @@ const englishStatusOptions = [
   { value: "in_review", label: "In Review" },
   { value: "accepted", label: "Accepted" },
   { value: "needs_correction", label: "Needs Correction" },
+  { value: "not_applicable", label: "Not Applicable" },
 ];
 
 const initialState: ChecklistFormState = { success: false };
 
 export function ChecklistForm({ applicationId, checklist }: Props) {
   const [state, formAction, isPending] = useActionState(
-    updateChecklist,
+    saveAdmissionChecklist,
     initialState
   );
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.success) {
+      router.refresh();
+    }
+  }, [state.success, router]);
 
   return (
     <form action={formAction} className="space-y-8">
-      <input type="hidden" name="checklist_id" value={checklist.id} />
       <input type="hidden" name="application_id" value={applicationId} />
 
       {state.error && (
@@ -95,10 +105,11 @@ export function ChecklistForm({ applicationId, checklist }: Props) {
 
       {state.success && (
         <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Checklist updated successfully.
+          Checklist saved successfully.
         </div>
       )}
 
+      <div className="space-y-8">
       <fieldset className="space-y-4">
         <legend className="text-sm font-semibold text-zinc-900">
           ID and Address Proof
@@ -108,13 +119,13 @@ export function ChecklistForm({ applicationId, checklist }: Props) {
             name="photo_id_status"
             label="Photo ID Status"
             options={idStatusOptions}
-            defaultValue={checklist.photo_id_status ?? "not_received"}
+            defaultValue={checklist?.photo_id_status ?? "not_received"}
           />
           <SelectField
             name="address_proof_status"
             label="Address Proof Status"
             options={idStatusOptions}
-            defaultValue={checklist.address_proof_status ?? "not_received"}
+            defaultValue={checklist?.address_proof_status ?? "not_received"}
           />
         </div>
       </fieldset>
@@ -128,19 +139,19 @@ export function ChecklistForm({ applicationId, checklist }: Props) {
             name="academic_route"
             label="Academic Route"
             options={academicRouteOptions}
-            defaultValue={checklist.academic_route ?? ""}
+            defaultValue={checklist?.academic_route ?? ""}
           />
           <SelectField
             name="academic_status"
             label="Academic Status"
             options={academicStatusOptions}
-            defaultValue={checklist.academic_status ?? "not_started"}
+            defaultValue={checklist?.academic_status ?? "not_started"}
           />
         </div>
         <TextareaField
           name="academic_notes"
           label="Academic Notes"
-          defaultValue={checklist.academic_notes ?? ""}
+          defaultValue={checklist?.academic_notes ?? ""}
         />
       </fieldset>
 
@@ -153,28 +164,36 @@ export function ChecklistForm({ applicationId, checklist }: Props) {
             name="english_route"
             label="English Route"
             options={englishRouteOptions}
-            defaultValue={checklist.english_route ?? ""}
+            defaultValue={checklist?.english_route ?? ""}
           />
           <SelectField
             name="english_status"
             label="English Status"
             options={englishStatusOptions}
-            defaultValue={checklist.english_status ?? "not_started"}
+            defaultValue={checklist?.english_status ?? "not_started"}
           />
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <InputField
             name="english_score"
             label="English Score / Result"
-            defaultValue={checklist.english_score ?? ""}
+            defaultValue={checklist?.english_score ?? ""}
           />
         </div>
         <TextareaField
           name="english_notes"
           label="English Notes"
-          defaultValue={checklist.english_notes ?? ""}
+          defaultValue={checklist?.english_notes ?? ""}
         />
       </fieldset>
+      </div>
+
+      {checklist?.admin_verified_at && (
+        <p className="text-xs text-zinc-400">
+          Last verified:{" "}
+          {new Date(checklist.admin_verified_at).toLocaleString("en-CA")}
+        </p>
+      )}
 
       <div className="flex items-center justify-end gap-3 border-t border-zinc-200 pt-5">
         <button

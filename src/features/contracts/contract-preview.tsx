@@ -153,10 +153,15 @@ function computeReadinessChecks(data: ContractDetailData): ReadinessCheck[] {
         : "No fee schedule created",
     },
     {
-      label: "Checklist started or completed",
-      passed: !!checklist,
+      label: "Checklist complete",
+      passed:
+        !!checklist &&
+        (checklist.photo_id_status === "accepted" || checklist.photo_id_status === "not_applicable") &&
+        (checklist.address_proof_status === "accepted" || checklist.address_proof_status === "not_applicable") &&
+        (checklist.academic_status === "accepted" || checklist.academic_status === "not_applicable") &&
+        (checklist.english_status === "accepted" || checklist.english_status === "not_applicable"),
       detail: checklist
-        ? `Academic: ${checklist.academic_status}, English: ${checklist.english_status}`
+        ? `Photo ID: ${checklist.photo_id_status}, Address: ${checklist.address_proof_status}, Academic: ${checklist.academic_status}, English: ${checklist.english_status}`
         : "No checklist created",
     },
     {

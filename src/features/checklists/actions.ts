@@ -49,6 +49,7 @@ export async function getChecklistDetail(applicationId: string) {
       id,
       status,
       created_at,
+      student_id,
       students (
         id, legal_first_name, legal_middle_name, legal_last_name,
         email, phone, student_number, date_of_birth,
@@ -102,6 +103,80 @@ export async function getChecklistDetail(applicationId: string) {
   };
 }
 
+export async function saveAdmissionChecklist(
+  _prev: ChecklistFormState,
+  formData: FormData
+): Promise<ChecklistFormState> {
+  const profile = await getUserProfile();
+  if (!profile) {
+    return { success: false, error: "You must be logged in." };
+  }
+  if (!isAdminOrSuper(profile.role)) {
+    return { success: false, error: "Only admins can update checklists." };
+  }
+
+  const applicationId = formData.get("application_id") as string;
+  if (!applicationId) {
+    return { success: false, error: "Missing application ID." };
+  }
+
+  const supabase = await createClient();
+
+  const { data: app } = await supabase
+    .from("applications")
+    .select("id, student_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (!app) {
+    return { success: false, error: "Application not found." };
+  }
+
+  const photoIdStatus = (formData.get("photo_id_status") as string) || "not_received";
+  const addressProofStatus = (formData.get("address_proof_status") as string) || "not_received";
+  const academicRoute = (formData.get("academic_route") as string) || null;
+  const academicStatus = (formData.get("academic_status") as string) || "not_started";
+  const academicNotes = (formData.get("academic_notes") as string) || null;
+  const englishRoute = (formData.get("english_route") as string) || null;
+  const englishStatus = (formData.get("english_status") as string) || "not_started";
+  const englishScore = (formData.get("english_score") as string) || null;
+  const englishNotes = (formData.get("english_notes") as string) || null;
+
+  const row = {
+    application_id: applicationId,
+    photo_id_status: photoIdStatus,
+    address_proof_status: addressProofStatus,
+    academic_route: academicRoute,
+    academic_status: academicStatus,
+    academic_notes: academicNotes,
+    english_route: englishRoute,
+    english_status: englishStatus,
+    english_score: englishScore,
+    english_notes: englishNotes,
+    admin_verified_by: profile.id,
+    admin_verified_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase.from("admission_checklists").upsert(row, {
+    onConflict: "application_id",
+  });
+
+  if (error) {
+    console.error("Admission checklist save error:", error.message);
+    return { success: false, error: "Could not save checklist." };
+  }
+
+  revalidatePath("/dashboard/checklists");
+  revalidatePath(`/dashboard/checklists/${applicationId}`);
+  revalidatePath("/dashboard/contracts");
+  revalidatePath(`/dashboard/contracts/${applicationId}/preview`);
+  if (app.student_id) {
+    revalidatePath(`/dashboard/students/${app.student_id}`);
+  }
+
+  return { success: true };
+}
+
 export async function createChecklist(
   applicationId: string
 ): Promise<ChecklistFormState> {
@@ -115,30 +190,39 @@ export async function createChecklist(
 
   const supabase = await createClient();
 
-  const { data: existing } = await supabase
-    .from("admission_checklists")
-    .select("id")
-    .eq("application_id", applicationId)
-    .maybeSingle();
+  const { data: app } = await supabase
+    .from("applications")
+    .select("id, student_id")
+    .eq("id", applicationId)
+    .single();
 
-  if (existing) {
-    return { success: false, error: "Checklist already exists." };
+  if (!app) {
+    return { success: false, error: "Application not found." };
   }
 
-  const { error } = await supabase.from("admission_checklists").insert({
-    application_id: applicationId,
-    photo_id_status: "not_received",
-    address_proof_status: "not_received",
-    academic_status: "not_started",
-    english_status: "not_started",
-  });
+  const { error } = await supabase.from("admission_checklists").upsert(
+    {
+      application_id: applicationId,
+      photo_id_status: "not_received",
+      address_proof_status: "not_received",
+      academic_status: "not_started",
+      english_status: "not_started",
+    },
+    { onConflict: "application_id", ignoreDuplicates: true }
+  );
 
   if (error) {
+    console.error("Checklist create error:", error.message);
     return { success: false, error: "Could not create checklist." };
   }
 
   revalidatePath("/dashboard/checklists");
   revalidatePath(`/dashboard/checklists/${applicationId}`);
+  revalidatePath("/dashboard/contracts");
+  revalidatePath(`/dashboard/contracts/${applicationId}/preview`);
+  if (app.student_id) {
+    revalidatePath(`/dashboard/students/${app.student_id}`);
+  }
 
   return { success: true };
 }
@@ -147,56 +231,5 @@ export async function updateChecklist(
   _prev: ChecklistFormState,
   formData: FormData
 ): Promise<ChecklistFormState> {
-  const profile = await getUserProfile();
-  if (!profile) {
-    return { success: false, error: "You must be logged in." };
-  }
-  if (!isAdminOrSuper(profile.role)) {
-    return { success: false, error: "Only admins can update checklists." };
-  }
-
-  const checklistId = formData.get("checklist_id") as string;
-  const applicationId = formData.get("application_id") as string;
-
-  if (!checklistId || !applicationId) {
-    return { success: false, error: "Missing checklist or application ID." };
-  }
-
-  const photoIdStatus = formData.get("photo_id_status") as string;
-  const addressProofStatus = formData.get("address_proof_status") as string;
-  const academicRoute = formData.get("academic_route") as string | null;
-  const academicStatus = formData.get("academic_status") as string;
-  const academicNotes = formData.get("academic_notes") as string;
-  const englishRoute = formData.get("english_route") as string | null;
-  const englishStatus = formData.get("english_status") as string;
-  const englishScore = formData.get("english_score") as string;
-  const englishNotes = formData.get("english_notes") as string;
-
-  const supabase = await createClient();
-
-  const { error } = await supabase
-    .from("admission_checklists")
-    .update({
-      photo_id_status: photoIdStatus || "not_received",
-      address_proof_status: addressProofStatus || "not_received",
-      academic_route: academicRoute || null,
-      academic_status: academicStatus || "not_started",
-      academic_notes: academicNotes || null,
-      english_route: englishRoute || null,
-      english_status: englishStatus || "not_started",
-      english_score: englishScore || null,
-      english_notes: englishNotes || null,
-      admin_verified_by: profile.id,
-      admin_verified_at: new Date().toISOString(),
-    })
-    .eq("id", checklistId);
-
-  if (error) {
-    return { success: false, error: "Could not update checklist." };
-  }
-
-  revalidatePath("/dashboard/checklists");
-  revalidatePath(`/dashboard/checklists/${applicationId}`);
-
-  return { success: true };
+  return saveAdmissionChecklist(_prev, formData);
 }
