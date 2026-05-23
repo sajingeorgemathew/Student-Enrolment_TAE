@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getApplicationsForFees } from "@/features/fees/actions";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const applicationStatusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -29,14 +31,20 @@ const feeStatusColors: Record<string, string> = {
 };
 
 export default async function FeesPage() {
-  const applications = await getApplicationsForFees();
+  const [applications, profile] = await Promise.all([
+    getApplicationsForFees(),
+    getUserProfile(),
+  ]);
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-zinc-900">Fee Schedules</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Manage fee schedules and payment installments for student applications
+          {isAdmin
+            ? "Manage fee schedules and payment installments for student applications"
+            : "View fee schedules for student applications"}
         </p>
       </div>
 
@@ -151,12 +159,14 @@ export default async function FeesPage() {
                         : "--"}
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/dashboard/fees/${app.id}`}
-                        className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
-                      >
-                        {feeSchedule ? "View" : "Create"}
-                      </Link>
+                      {(feeSchedule || isAdmin) && (
+                        <Link
+                          href={`/dashboard/fees/${app.id}`}
+                          className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                        >
+                          {feeSchedule ? "View" : "Create"}
+                        </Link>
+                      )}
                     </td>
                   </tr>
                 );

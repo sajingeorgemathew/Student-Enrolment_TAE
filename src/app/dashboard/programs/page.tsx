@@ -1,9 +1,15 @@
 import Link from "next/link";
 import { Plus, BookOpen } from "lucide-react";
 import { getPrograms } from "@/features/programs/actions";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 export default async function ProgramsPage() {
-  const programs = await getPrograms();
+  const [programs, profile] = await Promise.all([
+    getPrograms(),
+    getUserProfile(),
+  ]);
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
   return (
     <div>
@@ -14,13 +20,15 @@ export default async function ProgramsPage() {
             View programs and their batches
           </p>
         </div>
-        <Link
-          href="/dashboard/programs/new"
-          className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          New Program
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/dashboard/programs/new"
+            className="inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            New Program
+          </Link>
+        )}
       </div>
 
       {programs.length === 0 ? (
@@ -30,15 +38,19 @@ export default async function ProgramsPage() {
             No programs yet
           </p>
           <p className="mt-1 text-xs text-zinc-400">
-            Create your first program to get started
+            {isAdmin
+              ? "Create your first program to get started"
+              : "Programs will appear once they are created"}
           </p>
-          <Link
-            href="/dashboard/programs/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-          >
-            <Plus className="h-4 w-4" />
-            New Program
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/dashboard/programs/new"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            >
+              <Plus className="h-4 w-4" />
+              New Program
+            </Link>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white">
@@ -110,12 +122,14 @@ export default async function ProgramsPage() {
                         >
                           View Batches
                         </Link>
-                        <Link
-                          href={`/dashboard/programs/${program.id}/edit`}
-                          className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
-                        >
-                          Edit
-                        </Link>
+                        {isAdmin && (
+                          <Link
+                            href={`/dashboard/programs/${program.id}/edit`}
+                            className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                          >
+                            Edit
+                          </Link>
+                        )}
                       </div>
                     </td>
                   </tr>

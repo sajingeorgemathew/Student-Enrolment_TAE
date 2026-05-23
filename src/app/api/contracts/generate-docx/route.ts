@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 import { getContractDetail } from "@/features/contracts/actions";
 import { generateContractDocx } from "@/lib/generate-contract-docx";
 
@@ -7,6 +8,12 @@ export async function GET(request: NextRequest) {
   const profile = await getUserProfile();
   if (!profile) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!isAdminOrSuper(profile.role)) {
+    return NextResponse.json(
+      { error: "Only admin users can generate contracts." },
+      { status: 403 }
+    );
   }
 
   const applicationId = request.nextUrl.searchParams.get("applicationId");

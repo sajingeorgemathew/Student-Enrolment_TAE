@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getApplicationFeeDetail } from "@/features/fees/actions";
 import { FeeCalculatorForm } from "@/features/fees/fee-calculator-form";
+import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 const applicationStatusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -32,12 +34,16 @@ export default async function FeeDetailPage({
   params: Promise<{ applicationId: string }>;
 }) {
   const { applicationId } = await params;
-  const data = await getApplicationFeeDetail(applicationId);
+  const [data, profile] = await Promise.all([
+    getApplicationFeeDetail(applicationId),
+    getUserProfile(),
+  ]);
 
   if (!data) {
     notFound();
   }
 
+  const isAdmin = isAdminOrSuper(profile?.role ?? null);
   const { application, quote, feeSchedule, installments } = data;
 
   const student = application.students as unknown as {
@@ -247,24 +253,75 @@ export default async function FeeDetailPage({
         </Section>
 
         {/* Fee Calculator */}
-        <Section title="Fee Calculator">
-          <FeeCalculatorForm
-            applicationId={applicationId}
-            quoteId={quote?.id ?? null}
-            feeSchedule={feeSchedule}
-            installments={installments}
-            programDefaults={
-              program
-                ? {
-                    default_tuition: program.default_tuition,
-                    default_book_fee: program.default_book_fee,
-                    default_compulsory_fee: program.default_compulsory_fee,
-                    default_professional_exam_fee:
-                      program.default_professional_exam_fee,
-                  }
-                : null
-            }
-          />
+        <Section title={isAdmin ? "Fee Calculator" : "Fee Schedule"}>
+          {isAdmin ? (
+            <FeeCalculatorForm
+              applicationId={applicationId}
+              quoteId={quote?.id ?? null}
+              feeSchedule={feeSchedule}
+              installments={installments}
+              programDefaults={
+                program
+                  ? {
+                      default_tuition: program.default_tuition,
+                      default_book_fee: program.default_book_fee,
+                      default_compulsory_fee: program.default_compulsory_fee,
+                      default_professional_exam_fee:
+                        program.default_professional_exam_fee,
+                    }
+                  : null
+              }
+            />
+          ) : feeSchedule ? (
+            <div>
+              <FieldGrid>
+                <Field label="Tuition Fee" value={fmt(feeSchedule.tuition_fee)} />
+                <Field label="Book Fee" value={fmt(feeSchedule.book_fee)} />
+                <Field label="Compulsory Fee" value={fmt(feeSchedule.compulsory_fee)} />
+                <Field label="Total Fees" value={fmt(feeSchedule.total_fees)} />
+                <Field label="Discount" value={fmt(feeSchedule.discount_amount)} />
+                <Field label="Payment Before Signing" value={fmt(feeSchedule.payment_before_signing)} />
+                <Field label="Remaining Balance" value={fmt(feeSchedule.remaining_balance)} />
+                <Field
+                  label="Status"
+                  value={feeSchedule.status?.replace(/_/g, " ") ?? null}
+                />
+              </FieldGrid>
+              {installments.length > 0 && (
+                <div className="mt-4 border-t border-zinc-100 pt-4">
+                  <h3 className="mb-3 text-sm font-medium text-zinc-700">
+                    Payment Installments
+                  </h3>
+                  <div className="overflow-x-auto rounded-md border border-zinc-200">
+                    <table className="min-w-full divide-y divide-zinc-200">
+                      <thead className="bg-zinc-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">No.</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Due Date</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Amount</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">Notes</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {installments.map((inst) => (
+                          <tr key={inst.id}>
+                            <td className="px-4 py-2 text-sm text-zinc-900">{inst.installment_number}</td>
+                            <td className="px-4 py-2 text-sm text-zinc-600">
+                              {inst.due_date ? new Date(inst.due_date).toLocaleDateString("en-CA") : "--"}
+                            </td>
+                            <td className="px-4 py-2 text-sm text-zinc-900">{fmt(inst.amount_due)}</td>
+                            <td className="px-4 py-2 text-sm text-zinc-500">{inst.notes || "--"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <EmptyState message="No fee schedule has been created for this application." />
+          )}
         </Section>
       </div>
     </div>
