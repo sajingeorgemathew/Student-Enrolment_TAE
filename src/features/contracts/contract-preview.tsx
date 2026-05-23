@@ -270,13 +270,8 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
         {student && (
           <EditLink
             href={`/dashboard/students/${student.id}`}
-            label="Edit Student"
-          />
-        )}
-        {batch && (
-          <EditLink
-            href={`/dashboard/batches/${batch.id}/edit`}
-            label="Edit Batch"
+            label="Open Student File"
+            icon="view"
           />
         )}
         <EditLink

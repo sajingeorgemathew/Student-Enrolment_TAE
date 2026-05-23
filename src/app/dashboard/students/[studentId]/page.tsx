@@ -12,6 +12,8 @@ import { InlineReviewStatus } from "@/features/documents/inline-review-status";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
 import { getHubPrograms, getHubBatches } from "@/features/students/hub-actions";
+import { getBatchTransferHistory } from "@/features/students/batch-assignment-actions";
+import { BatchAssignmentControls } from "@/features/students/batch-assignment-controls";
 
 const statusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -213,11 +215,17 @@ export default async function StudentDetailPage({
     start_date: string | null;
   }[] = [];
 
+  let transferHistory: Awaited<ReturnType<typeof getBatchTransferHistory>> = [];
+
   if (isSalesOrAbove && latestApp) {
     programs = await getHubPrograms();
     if (latestApp.program_id) {
       batchesForProgram = await getHubBatches(latestApp.program_id);
     }
+  }
+
+  if (latestApp) {
+    transferHistory = await getBatchTransferHistory(studentId);
   }
 
   const canGenerateContract =
@@ -586,15 +594,15 @@ export default async function StudentDetailPage({
                   value={practicumLocations || null}
                 />
               </FieldGrid>
-              {batch && isAdmin && (
-                <div className="mt-4 flex items-center gap-3 border-t border-zinc-100 pt-4">
-                  <Link
-                    href={`/dashboard/batches/${batch.id}/edit`}
-                    className="text-sm font-medium text-zinc-700 hover:text-zinc-900"
-                  >
-                    Edit Batch
-                  </Link>
-                </div>
+              {batch && latestApp && (
+                <BatchAssignmentControls
+                  studentId={studentId}
+                  applicationId={latestApp.id}
+                  currentBatchId={batch.id}
+                  batches={batchesForProgram}
+                  transferHistory={transferHistory}
+                  isAdmin={isAdmin}
+                />
               )}
             </>
           )}
