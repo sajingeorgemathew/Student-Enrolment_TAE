@@ -115,7 +115,6 @@ type ReadinessCheck = {
 
 function computeReadinessChecks(data: ContractDetailData): ReadinessCheck[] {
   const student = data.application.students;
-  const program = data.application.programs;
   const batch = data.application.batches;
   const feeSchedule = data.feeSchedule;
   const checklist = data.checklist;
@@ -127,6 +126,17 @@ function computeReadinessChecks(data: ContractDetailData): ReadinessCheck[] {
     !!student?.legal_last_name &&
     !!student?.email;
 
+  const checklistComplete =
+    !!checklist &&
+    (checklist.photo_id_status === "accepted" || checklist.photo_id_status === "not_applicable") &&
+    (checklist.address_proof_status === "accepted" || checklist.address_proof_status === "not_applicable") &&
+    (checklist.academic_status === "accepted" || checklist.academic_status === "not_applicable") &&
+    (checklist.english_status === "accepted" || checklist.english_status === "not_applicable");
+
+  const checklistDetail = checklist
+    ? `Photo ID: ${checklist.photo_id_status}, Address: ${checklist.address_proof_status}, Academic: ${checklist.academic_status}, English: ${checklist.english_status}`
+    : "No checklist created yet";
+
   return [
     {
       label: "Student information complete",
@@ -136,14 +146,14 @@ function computeReadinessChecks(data: ContractDetailData): ReadinessCheck[] {
         : "Missing required student fields",
     },
     {
-      label: "Program selected",
-      passed: !!program,
-      detail: program ? program.program_name : "No program assigned",
-    },
-    {
-      label: "Batch selected",
+      label: "Batch assigned",
       passed: !!batch,
       detail: batch ? batch.batch_name : "No batch assigned",
+    },
+    {
+      label: "Official checklist ready",
+      passed: checklistComplete,
+      detail: checklistDetail,
     },
     {
       label: "Fee schedule approved",
@@ -151,18 +161,6 @@ function computeReadinessChecks(data: ContractDetailData): ReadinessCheck[] {
       detail: feeSchedule
         ? `Status: ${feeSchedule.status}`
         : "No fee schedule created",
-    },
-    {
-      label: "Checklist complete",
-      passed:
-        !!checklist &&
-        (checklist.photo_id_status === "accepted" || checklist.photo_id_status === "not_applicable") &&
-        (checklist.address_proof_status === "accepted" || checklist.address_proof_status === "not_applicable") &&
-        (checklist.academic_status === "accepted" || checklist.academic_status === "not_applicable") &&
-        (checklist.english_status === "accepted" || checklist.english_status === "not_applicable"),
-      detail: checklist
-        ? `Photo ID: ${checklist.photo_id_status}, Address: ${checklist.address_proof_status}, Academic: ${checklist.academic_status}, English: ${checklist.english_status}`
-        : "No checklist created",
     },
     {
       label: "Payment installments available",
@@ -190,7 +188,6 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
   const feeSchedule = data.feeSchedule;
   const checklist = data.checklist;
   const installments = data.installments;
-  const applicationId = data.application.id;
 
   const readiness = computeReadinessChecks(data);
   const allReady = readiness.every((r) => r.passed);
@@ -255,10 +252,17 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             ))}
           </div>
           <div className="mt-4">
-            {allReady ? (
+            {data.application.status === "contract_generated" ? (
+              <p className="text-sm font-medium text-purple-700">
+                Contract Generated. Word contract has been created for this application.
+              </p>
+            ) : data.application.status === "ready_for_contract" ? (
               <p className="text-sm font-medium text-green-700">
-                All readiness checks passed. This contract is ready for review
-                and generation.
+                Ready for Contract. Generate the Word contract from the student file.
+              </p>
+            ) : allReady ? (
+              <p className="text-sm font-medium text-green-700">
+                All readiness checks passed. Mark as ready for contract in the student file.
               </p>
             ) : (
               <p className="text-sm text-zinc-500">
@@ -270,7 +274,7 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
         </div>
       </div>
 
-      {/* Source Edit Links */}
+      {/* Source Links */}
       <div className="no-print flex flex-wrap gap-3">
         {student && (
           <EditLink
@@ -279,20 +283,20 @@ export function ContractPreview({ data }: { data: ContractDetailData }) {
             icon="view"
           />
         )}
-        <EditLink
-          href={`/dashboard/fees/${applicationId}`}
-          label="Edit Fees"
-        />
-        <EditLink
-          href={`/dashboard/checklists/${applicationId}`}
-          label="Edit Checklist"
-        />
-        <EditLink
-          href="/dashboard/documents"
-          label="View Documents"
-          icon="view"
-        />
       </div>
+      {student && (
+        <div className="no-print rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <p className="text-sm text-zinc-600">
+            To edit program, batch, fees, checklist, or documents, use the{" "}
+            <a
+              href={`/dashboard/students/${student.id}`}
+              className="font-medium text-zinc-800 underline hover:text-zinc-900"
+            >
+              student file
+            </a>.
+          </p>
+        </div>
+      )}
 
       {/* Contract Document */}
       <div className="contract-page mx-auto max-w-[8.5in] rounded-lg border border-zinc-200 bg-white shadow-sm print:rounded-none print:border-0 print:shadow-none">

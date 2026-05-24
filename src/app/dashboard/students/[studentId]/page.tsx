@@ -313,10 +313,6 @@ export default async function StudentDetailPage({
           label: "Payment installments available",
           ready: hasInstallments,
         },
-        {
-          label: "Word contract available",
-          ready: !!latestContract,
-        },
       ]
     : [];
 
@@ -637,6 +633,7 @@ export default async function StudentDetailPage({
               submittedToAdminAt={latestApp.submitted_to_admin_at as string | null}
               adminReviewedAt={(latestApp as Record<string, unknown>).admin_reviewed_at as string | null}
               readyForContractAt={latestApp.ready_for_contract_at as string | null}
+              contractGeneratedAt={(latestApp as Record<string, unknown>).contract_generated_at as string | null}
               adminOwnerName={
                 latestApp.admin_owner
                   ? ownerProfiles[latestApp.admin_owner] ?? null
@@ -1192,9 +1189,17 @@ export default async function StudentDetailPage({
             <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-base font-semibold text-zinc-900">
-                  Ready for Contract
+                  Contract Readiness
                 </h2>
-                {allReady ? (
+                {latestApp.status === "contract_generated" ? (
+                  <span className="inline-flex rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
+                    Contract Generated
+                  </span>
+                ) : latestApp.status === "ready_for_contract" ? (
+                  <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                    Ready for Contract
+                  </span>
+                ) : allReady ? (
                   <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                     Ready
                   </span>
@@ -1206,25 +1211,35 @@ export default async function StudentDetailPage({
               </div>
             </div>
             <div className="px-6 py-5">
-              {allReady ? (
+              {latestApp.status === "contract_generated" ? (
+                <div className="rounded-md border border-purple-200 bg-purple-50 px-4 py-3">
+                  <p className="text-sm font-medium text-purple-800">
+                    Word contract has been generated. Use the contract section below to download or regenerate.
+                  </p>
+                </div>
+              ) : latestApp.status === "ready_for_contract" ? (
                 <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3">
                   <p className="text-sm font-medium text-green-800">
-                    All items are complete. This student file is ready for contract generation.
+                    All items are complete. Generate the Word contract below.
+                  </p>
+                </div>
+              ) : allReady ? (
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3">
+                  <p className="text-sm font-medium text-green-800">
+                    All items are complete. Mark as ready for contract in the workflow review above.
                   </p>
                 </div>
               ) : (
-                <>
-                  <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-                    <p className="text-sm font-medium text-amber-800 mb-1">
-                      Missing items:
-                    </p>
-                    <ul className="text-sm text-amber-700">
-                      {readinessMissing.map((item) => (
-                        <li key={item.label}>- {item.label}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-sm font-medium text-amber-800 mb-1">
+                    Missing items:
+                  </p>
+                  <ul className="text-sm text-amber-700">
+                    {readinessMissing.map((item) => (
+                      <li key={item.label}>- {item.label}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <div className="mt-4 space-y-2">
                 {readinessItems.map((item) => (
@@ -1266,16 +1281,7 @@ export default async function StudentDetailPage({
             )}
           </div>
           <div className="px-6 py-5">
-            {!latestContract ? (
-              <div>
-                <EmptyState message="No contract generated yet. Complete the checklist and fee schedule first." />
-                {canGenerateContract && (
-                  <div className="mt-4 flex justify-center">
-                    <GenerateWordButton applicationId={latestApp.id} />
-                  </div>
-                )}
-              </div>
-            ) : (
+            {latestContract ? (
               <div>
                 <div className="flex items-center justify-between rounded-md border border-zinc-200 p-4">
                   <div>
@@ -1307,10 +1313,23 @@ export default async function StudentDetailPage({
                 </div>
                 {canGenerateContract && (
                   <div className="mt-4">
-                    <GenerateWordButton applicationId={latestApp.id} />
+                    <GenerateWordButton applicationId={latestApp!.id} />
                   </div>
                 )}
               </div>
+            ) : canGenerateContract ? (
+              <div>
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3">
+                  <p className="text-sm font-medium text-green-800">
+                    Ready to generate. Click below to create the Word contract.
+                  </p>
+                </div>
+                <div className="mt-4">
+                  <GenerateWordButton applicationId={latestApp!.id} />
+                </div>
+              </div>
+            ) : (
+              <EmptyState message="Contract generation will be available once this application is marked ready for contract." />
             )}
             <p className="mt-3 text-xs text-zinc-400">
               Official contract output is Word DOCX only.
