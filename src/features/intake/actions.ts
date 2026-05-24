@@ -169,20 +169,39 @@ export async function submitToAdminReview(applicationId: string) {
   }
 
   const supabase = await createClient();
+
+  const { data: app } = await supabase
+    .from("applications")
+    .select("id, status, student_id")
+    .eq("id", applicationId)
+    .single();
+
+  if (!app) return { success: false, error: "Application not found." };
+
+  if (app.status !== "new_intake" && app.status !== "information_needed") {
+    return {
+      success: false,
+      error: "Can only send to admin review from New Intake or Information Needed status.",
+    };
+  }
+
   const { error } = await supabase
     .from("applications")
     .update({
       status: "admin_review",
       submitted_to_admin_at: new Date().toISOString(),
     })
-    .eq("id", applicationId)
-    .eq("status", "new_intake");
+    .eq("id", applicationId);
 
   if (error) {
     return { success: false, error: "Could not send to admin review." };
   }
 
+  revalidatePath(`/dashboard/students/${app.student_id}`);
   revalidatePath("/dashboard/intake");
+  revalidatePath("/dashboard/contracts");
+  revalidatePath("/dashboard/checklists");
+  revalidatePath("/dashboard/fees");
   return { success: true };
 }
 
