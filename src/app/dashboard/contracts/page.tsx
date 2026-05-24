@@ -76,9 +76,20 @@ function extractFirst<T extends { id: string }>(raw: unknown): T | null {
 }
 
 function computeReadinessSummary(app: {
+  status: string;
   fee_schedules: unknown;
   admission_checklists: unknown;
 }): { label: string; color: string; missing: string[] } {
+  if (app.status === "contract_generated") {
+    return { label: "Contract Generated", color: "bg-purple-100 text-purple-800", missing: [] };
+  }
+  if (app.status === "ready_for_contract") {
+    return { label: "Ready for Contract", color: "bg-green-100 text-green-800", missing: [] };
+  }
+  if (app.status === "signature_pending" || app.status === "signed") {
+    return { label: app.status === "signed" ? "Signed" : "Signature Pending", color: "bg-emerald-100 text-emerald-800", missing: [] };
+  }
+
   const feeSchedule = extractFirst<{
     id: string;
     status: string;

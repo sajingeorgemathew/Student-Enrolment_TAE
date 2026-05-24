@@ -22,6 +22,7 @@ interface Props {
   submittedToAdminAt: string | null;
   adminReviewedAt: string | null;
   readyForContractAt: string | null;
+  contractGeneratedAt: string | null;
   adminOwnerName: string | null;
   salesNotes: string | null;
   adminNotes: string | null;
@@ -85,6 +86,7 @@ export function ReviewWorkflowPanel({
   submittedToAdminAt,
   adminReviewedAt,
   readyForContractAt,
+  contractGeneratedAt,
   adminOwnerName,
   salesNotes,
   adminNotes,
@@ -241,6 +243,17 @@ export function ReviewWorkflowPanel({
             </dt>
             <dd className="mt-1 text-sm text-zinc-900">
               {formatDate(readyForContractAt)}
+            </dd>
+          </div>
+        )}
+
+        {contractGeneratedAt && (
+          <div>
+            <dt className="text-xs font-medium text-zinc-500">
+              Contract Generated
+            </dt>
+            <dd className="mt-1 text-sm text-zinc-900">
+              {formatDate(contractGeneratedAt)}
             </dd>
           </div>
         )}
