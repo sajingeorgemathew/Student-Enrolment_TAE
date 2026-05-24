@@ -22,10 +22,8 @@ interface Batch {
 
 interface Application {
   id: string;
-  status: string;
   program_id: string | null;
   batch_id: string | null;
-  admin_notes: string | null;
 }
 
 interface Props {
@@ -33,17 +31,6 @@ interface Props {
   programs: Program[];
   initialBatches: Batch[];
 }
-
-const statusOptions = [
-  { value: "new_intake", label: "New Intake" },
-  { value: "admin_review", label: "Admin Review" },
-  { value: "information_needed", label: "Information Needed" },
-  { value: "ready_for_contract", label: "Ready for Contract" },
-  { value: "contract_generated", label: "Contract Generated" },
-  { value: "signature_pending", label: "Signature Pending" },
-  { value: "signed", label: "Signed" },
-  { value: "archived", label: "Archived" },
-];
 
 const initialState: HubFormState = { success: false };
 
@@ -94,28 +81,7 @@ export function AdminApplicationForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <label
-            htmlFor="admin_status"
-            className="mb-1 block text-xs font-medium text-zinc-500"
-          >
-            Application Status
-          </label>
-          <select
-            id="admin_status"
-            name="status"
-            defaultValue={application.status}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 focus:outline-none"
-          >
-            {statusOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
+      <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
         <div>
           <label
             htmlFor="admin_program_id"
@@ -162,22 +128,6 @@ export function AdminApplicationForm({
             ))}
           </select>
         </div>
-      </div>
-
-      <div>
-        <label
-          htmlFor="admin_notes"
-          className="mb-1 block text-xs font-medium text-zinc-500"
-        >
-          Admin Notes
-        </label>
-        <textarea
-          id="admin_notes"
-          name="admin_notes"
-          rows={3}
-          defaultValue={application.admin_notes ?? ""}
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 focus:outline-none"
-        />
       </div>
 
       <div className="flex items-center justify-end border-t border-zinc-200 pt-4">

@@ -16,6 +16,7 @@ import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
 import { getHubPrograms, getHubBatches } from "@/features/students/hub-actions";
 import { getBatchTransferHistory } from "@/features/students/batch-assignment-actions";
 import { BatchAssignmentControls } from "@/features/students/batch-assignment-controls";
+import { ReviewWorkflowPanel } from "@/features/students/review-workflow-panel";
 
 const statusLabels: Record<string, string> = {
   new_intake: "New Intake",
@@ -626,16 +627,37 @@ export default async function StudentDetailPage({
           </Section>
         )}
 
-        {/* 5. Admin Review - admin only editing */}
+        {/* 5. Workflow Review - visible to all roles */}
+        {latestApp && (
+          <Section title="Workflow Review">
+            <ReviewWorkflowPanel
+              applicationId={latestApp.id}
+              studentId={student.id}
+              status={latestApp.status}
+              submittedToAdminAt={latestApp.submitted_to_admin_at as string | null}
+              adminReviewedAt={(latestApp as Record<string, unknown>).admin_reviewed_at as string | null}
+              readyForContractAt={latestApp.ready_for_contract_at as string | null}
+              adminOwnerName={
+                latestApp.admin_owner
+                  ? ownerProfiles[latestApp.admin_owner] ?? null
+                  : null
+              }
+              salesNotes={latestApp.sales_notes}
+              adminNotes={latestApp.admin_notes}
+              readinessItems={readinessItems}
+              role={role}
+            />
+          </Section>
+        )}
+
+        {/* 5b. Admin Program and Batch Assignment */}
         {isAdmin && latestApp && (
-          <Section title="Admin Review">
+          <Section title="Admin - Program and Batch Assignment">
             <AdminApplicationForm
               application={{
                 id: latestApp.id,
-                status: latestApp.status,
                 program_id: latestApp.program_id,
                 batch_id: latestApp.batch_id,
-                admin_notes: latestApp.admin_notes,
               }}
               programs={programs}
               initialBatches={batchesForProgram}

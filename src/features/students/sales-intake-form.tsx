@@ -1,12 +1,10 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Send } from "lucide-react";
 import {
   updateApplicationSales,
   getHubBatches,
 } from "@/features/students/hub-actions";
-import { submitToAdminReview } from "@/features/intake/actions";
 import type { HubFormState } from "@/features/students/hub-actions";
 
 interface Program {
@@ -52,12 +50,6 @@ export function SalesIntakeForm({ application, programs, initialBatches }: Props
   );
   const [batches, setBatches] = useState<Batch[]>(initialBatches);
   const [loadingBatches, setLoadingBatches] = useState(false);
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-
-  const canSendToReview =
-    application.status === "new_intake" ||
-    application.status === "information_needed";
 
   function handleProgramChange(programId: string) {
     setSelectedProgram(programId);
@@ -74,16 +66,6 @@ export function SalesIntakeForm({ application, programs, initialBatches }: Props
       setBatches(data);
       setLoadingBatches(false);
     });
-  }
-
-  async function handleSendToReview() {
-    setReviewLoading(true);
-    setReviewError(null);
-    const result = await submitToAdminReview(application.id);
-    if (!result.success) {
-      setReviewError(result.error ?? "Something went wrong.");
-    }
-    setReviewLoading(false);
   }
 
   return (
@@ -227,23 +209,7 @@ export function SalesIntakeForm({ application, programs, initialBatches }: Props
           />
         </div>
 
-        <div className="flex items-center justify-between border-t border-zinc-200 pt-4">
-          <div>
-            {canSendToReview && (
-              <button
-                type="button"
-                onClick={handleSendToReview}
-                disabled={reviewLoading}
-                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-              >
-                <Send className="h-3 w-3" />
-                {reviewLoading ? "Sending..." : "Send to Admin Review"}
-              </button>
-            )}
-            {reviewError && (
-              <span className="ml-2 text-xs text-red-600">{reviewError}</span>
-            )}
-          </div>
+        <div className="flex items-center justify-end border-t border-zinc-200 pt-4">
           <button
             type="submit"
             disabled={isPending}
