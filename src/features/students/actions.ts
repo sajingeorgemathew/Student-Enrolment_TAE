@@ -37,6 +37,8 @@ export async function getStudents(search?: string, batchId?: string) {
         city,
         province,
         created_at,
+        archived_at,
+        archive_reason,
         applications (
           id,
           status,
@@ -74,6 +76,8 @@ export async function getStudents(search?: string, batchId?: string) {
       city,
       province,
       created_at,
+      archived_at,
+      archive_reason,
       applications (
         id,
         status,
