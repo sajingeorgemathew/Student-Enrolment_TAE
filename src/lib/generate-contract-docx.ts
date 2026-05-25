@@ -1,33 +1,7 @@
 import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
 import type { ContractDetailData } from "@/features/contracts/actions";
-
-const MAX_TEMPLATE_INSTALLMENTS = 5;
-const CONTRACT_DATE_CONSTANT = "02/05/2024";
-
-const ACADEMIC_MARKERS: Record<string, string> = {
-  canadian_secondary: "Grade 12 Ontario Secondary School Diploma",
-  foreign_credential:
-    "International Student and/or Applicant with foreign credentials",
-  mature_student: "Mature student status may be granted",
-};
-
-const ENGLISH_MARKERS: Record<string, string> = {
-  ielts: "IELTS",
-  toefl_ibt: "TOEFL",
-  cael: "CAEL",
-  celpip: "Canadian English Language Proficiency Index Program",
-  clb: "Canadian Language Benchmark Tests",
-  duolingo: "Duolingo English Test",
-  pte_academic: "Pearson PTE Academic",
-  nacc_written_exam: "NACC Written Entrance Exam",
-  two_years_canadian_postsecondary_english:
-    "post-secondary study in English at a Canadian institution",
-  two_years_international_postsecondary_english:
-    "post-secondary study in English at an institution outside of Canada",
-};
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "";
@@ -39,6 +13,7 @@ function formatDate(dateStr: string | null | undefined): string {
   const yyyy = d.getFullYear();
   return `${dd}/${mm}/${yyyy}`;
 }
+
 
 function formatCurrencyUnderlined(amount: number | null | undefined): string {
   const blank = "___________________";
@@ -97,137 +72,139 @@ function parseHoursFromTime(classTime: string): number | null {
   return diff > 0 ? diff : null;
 }
 
-function extractParagraph(
-  xml: string,
-  textPosition: number
-): { start: number; end: number; content: string } | null {
-  const start = xml.lastIndexOf("<w:p ", textPosition);
-  if (start === -1) return null;
-  const end = xml.indexOf("</w:p>", start);
-  if (end === -1) return null;
-  return { start, end: end + 6, content: xml.substring(start, end + 6) };
+// ---------------------------------------------------------------------------
+// XML-level text replacement
+// ---------------------------------------------------------------------------
+
+interface TextRun {
+  fullMatch: string;
+  prefix: string;
+  text: string;
+  suffix: string;
+  start: number;
+  end: number;
 }
 
-function removeWingdingsFromParagraph(paragraphXml: string): string {
-  return paragraphXml.replace(
-    /<w:r[^>]*><w:rPr>[\s\S]*?<\/w:rPr><w:sym w:font="Wingdings"[^/]*\/><\/w:r>/g,
-    ""
-  );
-}
-
-function removeNumPrFromParagraph(paragraphXml: string): string {
-  return paragraphXml.replace(/<w:numPr>[\s\S]*?<\/w:numPr>/g, "");
-}
-
-function removeBoldFromParagraph(paragraphXml: string): string {
-  return paragraphXml
-    .replace(/<w:b\s*\/>/g, "")
-    .replace(/<w:bCs\s*\/>/g, "");
-}
-
-function addBoldToParagraph(paragraphXml: string): string {
-  return paragraphXml.replace(
-    /<w:rPr>([\s\S]*?)<\/w:rPr>/g,
-    (match, inner) => {
-      if (inner.includes("<w:b") || match.includes("Wingdings")) return match;
-      return `<w:rPr><w:b/><w:bCs/>${inner}</w:rPr>`;
-    }
-  );
-}
-
-function addCheckmarkToParagraph(paragraphXml: string): string {
-  const checkmarkRun =
-    '<w:r><w:rPr><w:b/><w:bCs/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr>' +
-    '<w:sym w:font="Wingdings" w:char="F0FE"/></w:r>';
-
-  const pPrEnd = paragraphXml.indexOf("</w:pPr>");
-  if (pPrEnd !== -1) {
-    const insertPos = pPrEnd + 8;
-    return (
-      paragraphXml.substring(0, insertPos) +
-      checkmarkRun +
-      paragraphXml.substring(insertPos)
-    );
+function getTextRuns(paragraphXml: string): TextRun[] {
+  const runs: TextRun[] = [];
+  const re = /(<w:t[^>]*>)([^<]*)(<\/w:t>)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(paragraphXml)) !== null) {
+    runs.push({
+      fullMatch: m[0],
+      prefix: m[1],
+      text: m[2],
+      suffix: m[3],
+      start: m.index,
+      end: m.index + m[0].length,
+    });
   }
-
-  return paragraphXml;
+  return runs;
 }
 
-function addPageBreakBeforeEnglish(docXml: string): string {
-  const marker = "English Language Proficiency";
-  const idx = docXml.indexOf(marker);
-  if (idx === -1) return docXml;
-
-  const para = extractParagraph(docXml, idx);
-  if (!para) return docXml;
-
-  if (para.content.includes("<w:pageBreakBefore/>")) return docXml;
-
-  const pPrEnd = para.content.indexOf("</w:pPr>");
-  if (pPrEnd === -1) return docXml;
-
-  const updated =
-    para.content.substring(0, pPrEnd) +
-    "<w:pageBreakBefore/>" +
-    para.content.substring(pPrEnd);
-
-  return (
-    docXml.substring(0, para.start) + updated + docXml.substring(para.end)
-  );
-}
-
-function applyCheckmarks(
-  docXml: string,
-  data: ContractDetailData
+function replaceTextAcrossRuns(
+  paragraphXml: string,
+  searchText: string,
+  replacement: string
 ): string {
-  for (const [route, marker] of Object.entries(ACADEMIC_MARKERS)) {
-    const markerIdx = docXml.indexOf(marker);
-    if (markerIdx === -1) continue;
+  const runs = getTextRuns(paragraphXml);
+  const combined = runs.map((r) => r.text).join("");
+  const idx = combined.indexOf(searchText);
+  if (idx === -1) return paragraphXml;
 
-    const para = extractParagraph(docXml, markerIdx);
-    if (!para) continue;
+  let charOffset = 0;
+  let result = paragraphXml;
+  let xmlDelta = 0;
+  let placed = false;
 
-    let cleaned = removeWingdingsFromParagraph(para.content);
-    cleaned = removeBoldFromParagraph(cleaned);
-    cleaned = removeNumPrFromParagraph(cleaned);
+  for (const run of runs) {
+    const runStart = charOffset;
+    const runEnd = charOffset + run.text.length;
 
-    if (data.checklist?.academic_route === route) {
-      cleaned = addCheckmarkToParagraph(cleaned);
+    if (runEnd <= idx || runStart >= idx + searchText.length) {
+      charOffset = runEnd;
+      continue;
     }
 
-    docXml =
-      docXml.substring(0, para.start) + cleaned + docXml.substring(para.end);
-  }
+    const overlapStart = Math.max(idx, runStart) - runStart;
+    const overlapEnd = Math.min(idx + searchText.length, runEnd) - runStart;
 
-  docXml = addPageBreakBeforeEnglish(docXml);
-
-  const englishStart = docXml.indexOf("English Language Proficiency");
-  const feesStart = docXml.indexOf(">Fees<");
-
-  for (const [route, marker] of Object.entries(ENGLISH_MARKERS)) {
-    const searchFrom = englishStart !== -1 ? englishStart : 0;
-    const searchTo = feesStart !== -1 ? feesStart : docXml.length;
-
-    const markerIdx = docXml.indexOf(marker, searchFrom);
-    if (markerIdx === -1 || markerIdx > searchTo) continue;
-
-    const para = extractParagraph(docXml, markerIdx);
-    if (!para) continue;
-
-    let cleaned = removeWingdingsFromParagraph(para.content);
-    cleaned = removeBoldFromParagraph(cleaned);
-
-    if (data.checklist?.english_route === route) {
-      cleaned = addCheckmarkToParagraph(cleaned);
-      cleaned = addBoldToParagraph(cleaned);
+    let newText: string;
+    if (!placed) {
+      const before = run.text.substring(0, overlapStart);
+      const after = run.text.substring(overlapEnd);
+      newText = before + replacement + after;
+      placed = true;
+    } else {
+      const before = run.text.substring(0, overlapStart);
+      const after = run.text.substring(overlapEnd);
+      newText = before + after;
     }
 
-    docXml =
-      docXml.substring(0, para.start) + cleaned + docXml.substring(para.end);
+    const newRun = run.prefix + newText + run.suffix;
+    const adjustedStart = run.start + xmlDelta;
+    const adjustedEnd = run.end + xmlDelta;
+    result =
+      result.substring(0, adjustedStart) + newRun + result.substring(adjustedEnd);
+    xmlDelta += newRun.length - (run.end - run.start);
+
+    charOffset = runEnd;
   }
 
-  return docXml;
+  return result;
 }
+
+function findParagraph(
+  xml: string,
+  searchText: string,
+  startFrom = 0
+): { start: number; end: number; content: string } | null {
+  const paraOpenRe = /<w:p[ >]/g;
+  paraOpenRe.lastIndex = startFrom;
+  let match: RegExpExecArray | null;
+  while ((match = paraOpenRe.exec(xml)) !== null) {
+    const paraStart = match.index;
+    const paraEndTag = xml.indexOf("</w:p>", paraStart);
+    if (paraEndTag === -1) continue;
+    const paraEnd = paraEndTag + 6;
+    const paraContent = xml.substring(paraStart, paraEnd);
+    const textRe = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let textMatch: RegExpExecArray | null;
+    let combinedText = "";
+    while ((textMatch = textRe.exec(paraContent)) !== null) {
+      combinedText += textMatch[1];
+    }
+    if (combinedText.includes(searchText)) {
+      return { start: paraStart, end: paraEnd, content: paraContent };
+    }
+  }
+  return null;
+}
+
+function replaceParagraphText(
+  xml: string,
+  contextLabel: string,
+  searchText: string,
+  replacement: string,
+  startFrom = 0
+): string {
+  let searchPos = startFrom;
+  for (;;) {
+    const para = findParagraph(xml, contextLabel, searchPos);
+    if (!para) return xml;
+    const updated = replaceTextAcrossRuns(para.content, searchText, replacement);
+    if (updated !== para.content) {
+      return xml.substring(0, para.start) + updated + xml.substring(para.end);
+    }
+    searchPos = para.end;
+  }
+}
+
+
+// Reference data that will be replaced with actual student data
+const REF_STUDENT_NAME = "CHIDI GLORIA AROWOLO";
+const REF_START_DATE = "27/04/2026";
+const REF_END_DATE = "25/10/2026";
 
 export function generateContractDocx(data: ContractDetailData): Buffer {
   const templatePath = path.join(
@@ -238,18 +215,8 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
   const zip = new PizZip(templateContent);
 
   const docXmlFile = zip.file("word/document.xml");
-  if (docXmlFile) {
-    const docXml = applyCheckmarks(docXmlFile.asText(), data);
-    zip.file("word/document.xml", docXml);
-  }
-
-  const doc = new Docxtemplater(zip, {
-    paragraphLoop: true,
-    linebreaks: true,
-    nullGetter() {
-      return "";
-    },
-  });
+  if (!docXmlFile) throw new Error("Template missing document.xml");
+  let xml = docXmlFile.asText();
 
   const student = data.application.students;
   const program = data.application.programs;
@@ -257,86 +224,344 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
   const feeSchedule = data.feeSchedule;
   const installments = data.installments;
 
+  const studentFullName =
+    buildStudentFullName(student) || "________________________";
+  const mailingAddress =
+    [student?.mailing_address_line_1, student?.mailing_address_line_2]
+      .filter(Boolean)
+      .join(", ") || "________________";
+  const programName = program?.program_name || "________________________";
+
   const practicumHours1 = program?.practicum_hours
     ? Math.round((Number(program.practicum_hours) * 2) / 3)
     : null;
   const practicumHours2 = program?.practicum_hours
     ? Math.round(Number(program.practicum_hours) / 3)
     : null;
-  const totalPracticumHours = program?.practicum_hours
-    ? Number(program.practicum_hours)
-    : null;
 
   const hoursPerDay = batch?.class_time
     ? parseHoursFromTime(batch.class_time)
     : null;
 
+  // ---------------------------------------------------------------
+  // Page 1: Student information
+  // ---------------------------------------------------------------
+  xml = replaceParagraphText(
+    xml,
+    "Name of Student",
+    REF_STUDENT_NAME,
+    studentFullName
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Student No",
+    "PSW 125300",
+    student?.student_number || "________________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Mailing Address",
+    "109 PRESTON MEADOW AVENUE",
+    mailingAddress
+  );
+  xml = replaceParagraphText(
+    xml,
+    "City:",
+    "DRYDEN",
+    student?.city || "__________________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Province:",
+    "ONTARIO",
+    student?.province || "________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Postal Code:",
+    "L4Z OC3",
+    student?.postal_code || "__________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Phone:",
+    "437-225-8728",
+    student?.phone || "___________________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Email Address",
+    "ladyglowin@gmail.com",
+    student?.email || "________________________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Date of Birth",
+    "01/11/1976",
+    formatDate(student?.date_of_birth) || "____/____/________"
+  );
+
+  // ---------------------------------------------------------------
+  // Page 1: Program information
+  // ---------------------------------------------------------------
+  xml = replaceParagraphText(
+    xml,
+    "Name of Program",
+    "NACC PERSONAL SUPPORT WORKER (PSW) DE 2022 (Accelerated)",
+    programName
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Commencing on",
+    "27/04/2026",
+    formatDate(batch?.start_date) || "____/____/________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Expected Completion Date",
+    "25/10/2026",
+    formatDate(batch?.expected_end_date) || "____/____/________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Credential to be Awarded",
+    "PSW Certificate",
+    program?.credential_name || "________________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Training Location",
+    "25 Watline Avenue, Unit 204",
+    batch?.training_location || "________________________"
+  );
+
+  // Practicum 1
+  const prac1Para = findParagraph(xml, "Practicum-1");
+  if (prac1Para) {
+    let p = prac1Para.content;
+    p = replaceTextAcrossRuns(
+      p,
+      "200",
+      practicumHours1 != null ? String(practicumHours1) : "___"
+    );
+    p = replaceTextAcrossRuns(
+      p,
+      "EXTENDICARE (To be determined as per availability)",
+      batch?.practicum_1_location || "(To be determined as per availability)"
+    );
+    xml = xml.substring(0, prac1Para.start) + p + xml.substring(prac1Para.end);
+  }
+
+  // Practicum 2
+  const prac2Start = xml.indexOf("practicum-2");
+  const prac2Para = prac2Start !== -1 ? findParagraph(xml, "practicum-2") : null;
+  if (prac2Para) {
+    let p = prac2Para.content;
+    p = replaceTextAcrossRuns(
+      p,
+      "100",
+      practicumHours2 != null ? String(practicumHours2) : "___"
+    );
+    p = replaceTextAcrossRuns(
+      p,
+      "CHARTWELL OR EXTENDICARE (To be determined as per availability)",
+      batch?.practicum_2_location || "(To be determined as per availability)"
+    );
+    // Also try without CHARTWELL prefix
+    p = replaceTextAcrossRuns(
+      p,
+      "(To be determined as per availability)",
+      batch?.practicum_2_location || "(To be determined as per availability)"
+    );
+    xml = xml.substring(0, prac2Para.start) + p + xml.substring(prac2Para.end);
+  }
+
+  // Program hours
+  xml = replaceParagraphText(
+    xml,
+    "Program length",
+    "700",
+    program?.total_hours ? String(program.total_hours) : "____"
+  );
+
+  // ---------------------------------------------------------------
+  // Class schedule table
+  // ---------------------------------------------------------------
+  const csLabelPos = xml.indexOf("Class Schedule");
+  if (csLabelPos !== -1) {
+    const tblStart = xml.indexOf("<w:tbl>", csLabelPos);
+    if (tblStart !== -1) {
+      const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+      let tbl = xml.substring(tblStart, tblEnd);
+      const classTime = batch?.class_time || "";
+      const hpd = hoursPerDay != null ? String(hoursPerDay) : "";
+      tbl = tbl.replace(/>8:00AM-2:00PM</g, ">" + classTime + "<");
+      tbl = tbl.replace(
+        /(<w:t[^>]*>)6(<\/w:t>)/g,
+        "$1" + hpd + "$2"
+      );
+      xml = xml.substring(0, tblStart) + tbl + xml.substring(tblEnd);
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Fees section
+  // ---------------------------------------------------------------
+  const feeLabelPos = xml.indexOf(">Fees<");
+  if (feeLabelPos !== -1) {
+    // Tuition fee: "___5365______________" -> new value
+    xml = replaceParagraphText(
+      xml,
+      "Tuition fee",
+      "___5365______________",
+      formatCurrencyUnderlined(feeSchedule?.tuition_fee),
+      feeLabelPos
+    );
+    // Other fees are blank underlines in the reference
+    // They appear as "___________________" in w:t elements
+    const feeFields = [
+      ["Book fees", feeSchedule?.book_fee],
+      ["Compulsory fees", feeSchedule?.compulsory_fee],
+      ["Field Trips", feeSchedule?.field_trip_fee],
+      ["Uniform", feeSchedule?.uniform_equipment_fee],
+      ["Professional Exam", feeSchedule?.professional_exam_fee],
+      ["Expendable supplies", feeSchedule?.expendable_supplies_fee],
+      ["International fees", feeSchedule?.international_fee],
+      ["Optional fees", feeSchedule?.optional_fee],
+    ] as const;
+
+    for (const [label, amount] of feeFields) {
+      const newVal = formatCurrencyUnderlined(amount as number | null | undefined);
+      xml = replaceParagraphText(
+        xml,
+        label,
+        "___________________",
+        newVal,
+        feeLabelPos
+      );
+    }
+  }
+
+  // Total fees
+  xml = replaceParagraphText(
+    xml,
+    "Total fees",
+    "____5365_______________",
+    formatCurrencyUnderlined(feeSchedule?.total_fees),
+    feeLabelPos > 0 ? feeLabelPos : 0
+  );
+
+  // ---------------------------------------------------------------
+  // Payment schedule
+  // ---------------------------------------------------------------
+  xml = replaceParagraphText(
+    xml,
+    "Payments prior to signing",
+    "865",
+    formatCurrencyPlain(feeSchedule?.payment_before_signing) || "___________"
+  );
+  xml = replaceParagraphText(
+    xml,
+    "Payments after signing",
+    "NIL",
+    feeSchedule && Number(feeSchedule.payment_after_signing) === 0
+      ? "NIL"
+      : formatCurrencyPlain(feeSchedule?.payment_after_signing) || "___________"
+  );
+
+  // ---------------------------------------------------------------
+  // Installment table
+  // ---------------------------------------------------------------
+  const refInstallments = [
+    { date: "01/06/2026", amount: "900" },
+    { date: "01/07/2026", amount: "900" },
+    { date: "01/08/2026", amount: "900" },
+    { date: "01/09/2026", amount: "900" },
+    { date: "01/10/2026", amount: "900" },
+  ];
+
+  const instLabelPos = xml.indexOf("Instalment");
+  if (instLabelPos !== -1) {
+    const instTblStart = xml.lastIndexOf("<w:tbl>", instLabelPos);
+    if (instTblStart !== -1) {
+      const instTblEnd = xml.indexOf("</w:tbl>", instTblStart) + 8;
+      let tbl = xml.substring(instTblStart, instTblEnd);
+
+      for (let i = 0; i < refInstallments.length; i++) {
+        const inst = installments.find((inst) => inst.installment_number === i + 1);
+        const newDate = inst ? formatDate(inst.due_date) : "";
+        const newAmount = inst ? formatCurrencyPlain(inst.amount_due) : "";
+
+        tbl = replaceTextAcrossRuns(tbl, refInstallments[i].date, newDate);
+        tbl = replaceTextAcrossRuns(tbl, refInstallments[i].amount, newAmount);
+      }
+
+      xml = xml.substring(0, instTblStart) + tbl + xml.substring(instTblEnd);
+    }
+  }
+
+  // Installment total
   const installmentTotal = installments.reduce(
     (sum, inst) => sum + Number(inst.amount_due),
     0
   );
+  xml = replaceParagraphText(
+    xml,
+    "nstallment",
+    "4500",
+    formatCurrencyPlain(installmentTotal || null)
+  );
 
-  const templateData: Record<string, string> = {
-    contract_date: CONTRACT_DATE_CONSTANT,
-    student_full_name: buildStudentFullName(student) || "________________________",
-    student_number: student?.student_number || "________________",
-    mailing_address: student?.mailing_address_line_1 || "________________",
-    city: student?.city || "__________________",
-    province: student?.province || "________",
-    postal_code: student?.postal_code || "__________",
-    phone: student?.phone || "___________________",
-    email: student?.email || "________________________",
-    date_of_birth: formatDate(student?.date_of_birth) || "____/____/________",
-    program_name: program?.program_name || "________________________",
-    program_start_date: formatDate(batch?.start_date) || "____/____/________",
-    expected_completion_date: formatDate(batch?.expected_end_date) || "____/____/________",
-    credential_name: program?.credential_name || "________________",
-    training_location: batch?.training_location || "________________________",
-    practicum_1_location:
-      batch?.practicum_1_location || "(To be determined as per availability)",
-    practicum_2_location:
-      batch?.practicum_2_location || "(To be determined as per availability)",
-    practicum_1_hours: practicumHours1 != null ? String(practicumHours1) : "___",
-    practicum_2_hours: practicumHours2 != null ? String(practicumHours2) : "___",
-    total_practicum_hours:
-      totalPracticumHours != null ? String(totalPracticumHours) : "___",
-    program_hours: program?.total_hours ? String(program.total_hours) : "________________",
-    class_time: batch?.class_time || "",
-    hours_per_day: hoursPerDay != null ? String(hoursPerDay) : "",
-    tuition_fee: formatCurrencyUnderlined(feeSchedule?.tuition_fee),
-    book_fee: formatCurrencyUnderlined(feeSchedule?.book_fee),
-    compulsory_fee: formatCurrencyUnderlined(feeSchedule?.compulsory_fee),
-    field_trip_fee: formatCurrencyUnderlined(feeSchedule?.field_trip_fee),
-    uniform_equipment_fee: formatCurrencyUnderlined(feeSchedule?.uniform_equipment_fee),
-    professional_exam_fee: formatCurrencyUnderlined(feeSchedule?.professional_exam_fee),
-    expendable_supplies_fee: formatCurrencyUnderlined(
-      feeSchedule?.expendable_supplies_fee
-    ),
-    international_fee: formatCurrencyUnderlined(feeSchedule?.international_fee),
-    optional_fee: formatCurrencyUnderlined(feeSchedule?.optional_fee),
-    total_fees: formatCurrencyUnderlined(feeSchedule?.total_fees),
-    payment_before_signing: formatCurrencyPlain(feeSchedule?.payment_before_signing),
-    payment_after_signing:
-      feeSchedule && Number(feeSchedule.payment_after_signing) === 0
-        ? "NIL"
-        : formatCurrencyPlain(feeSchedule?.payment_after_signing),
-    installment_total: formatCurrencyPlain(installmentTotal || null),
-    total_payments: formatCurrencyPlain(feeSchedule?.total_fees),
-  };
+  // Total payments
+  xml = replaceParagraphText(
+    xml,
+    "Total payments",
+    "5365",
+    formatCurrencyPlain(feeSchedule?.total_fees) || "___________"
+  );
 
-  for (let i = 1; i <= MAX_TEMPLATE_INSTALLMENTS; i++) {
-    const inst = installments.find((inst) => inst.installment_number === i);
-    templateData[`installment_${i}_due_date`] = inst
-      ? formatDate(inst.due_date)
-      : "";
-    templateData[`installment_${i}_amount`] = inst
-      ? formatCurrencyPlain(inst.amount_due)
-      : "";
-  }
+  // ---------------------------------------------------------------
+  // Remaining batch dates (e.g. practicum schedule summary page)
+  // ---------------------------------------------------------------
+  const newStartDate =
+    formatDate(batch?.start_date) || "____/____/________";
+  const newEndDate =
+    formatDate(batch?.expected_end_date) || "____/____/________";
+  let prev: string;
+  do {
+    prev = xml;
+    xml = replaceParagraphText(xml, REF_START_DATE, REF_START_DATE, newStartDate);
+  } while (xml !== prev);
+  do {
+    prev = xml;
+    xml = replaceParagraphText(xml, REF_END_DATE, REF_END_DATE, newEndDate);
+  } while (xml !== prev);
 
-  doc.render(templateData);
+  // ---------------------------------------------------------------
+  // Contract body: Student name (9 remaining occurrences)
+  // ---------------------------------------------------------------
+  const nameRe = new RegExp(
+    "(<w:t[^>]*>)" + REF_STUDENT_NAME.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(</w:t>)",
+    "g"
+  );
+  xml = xml.replace(nameRe, "$1" + studentFullName + "$2");
 
-  const buf = doc.getZip().generate({
+  // ---------------------------------------------------------------
+  // Contract body: Program name references
+  // ---------------------------------------------------------------
+  const refProgram = "NACC Personal Support Worker (PSW)";
+  const progRe = new RegExp(
+    "(<w:t[^>]*>)" + refProgram.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(</w:t>)",
+    "g"
+  );
+  xml = xml.replace(progRe, "$1" + programName + "$2");
+
+  // ---------------------------------------------------------------
+  // Save the modified XML back
+  // ---------------------------------------------------------------
+  zip.file("word/document.xml", xml);
+
+  const buf = zip.generate({
     type: "nodebuffer",
     compression: "DEFLATE",
   });
