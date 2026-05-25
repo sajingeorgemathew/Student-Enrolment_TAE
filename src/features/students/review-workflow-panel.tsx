@@ -28,6 +28,7 @@ interface Props {
   adminNotes: string | null;
   readinessItems: ReadinessItem[];
   role: string | null;
+  readOnly?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -92,6 +93,7 @@ export function ReviewWorkflowPanel({
   adminNotes,
   readinessItems,
   role,
+  readOnly = false,
 }: Props) {
   const isAdmin = role === "admin" || role === "super_admin";
   const isSales = role === "sales";
@@ -106,11 +108,12 @@ export function ReviewWorkflowPanel({
   const readinessMissing = readinessItems.filter((item) => !item.ready);
 
   const canSendToReview =
+    !readOnly &&
     isSales &&
     (status === "new_intake" || status === "information_needed");
 
-  const canMarkInfoNeeded = isAdmin && status === "admin_review";
-  const canMarkReady = isAdmin && status === "admin_review";
+  const canMarkInfoNeeded = !readOnly && isAdmin && status === "admin_review";
+  const canMarkReady = !readOnly && isAdmin && status === "admin_review";
 
   function clearMessages() {
     setActionError(null);
@@ -290,7 +293,7 @@ export function ReviewWorkflowPanel({
 
       <div className="border-t border-zinc-100 pt-4">
         <p className="text-xs font-medium text-zinc-500">Admin Notes</p>
-        {isAdmin ? (
+        {isAdmin && !readOnly ? (
           <div className="mt-1 space-y-2">
             <textarea
               value={notes}

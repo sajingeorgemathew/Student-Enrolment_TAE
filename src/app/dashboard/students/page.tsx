@@ -116,12 +116,21 @@ export default async function StudentsPage({
                   return (
                     <tr key={student.id} className="hover:bg-zinc-50">
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/dashboard/students/${student.id}`}
-                          className="text-sm font-medium text-zinc-900 hover:text-zinc-700 hover:underline"
-                        >
-                          {student.legal_first_name} {student.legal_last_name}
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/dashboard/students/${student.id}`}
+                            className="text-sm font-medium text-zinc-900 hover:text-zinc-700 hover:underline"
+                          >
+                            {student.legal_first_name} {student.legal_last_name}
+                          </Link>
+                          {student.archived_at && (
+                            <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                              {student.archive_reason
+                                ? `Archived - ${student.archive_reason}`
+                                : "Archived"}
+                            </span>
+                          )}
+                        </div>
                         {student.student_number && (
                           <div className="text-xs text-zinc-400">
                             {student.student_number}

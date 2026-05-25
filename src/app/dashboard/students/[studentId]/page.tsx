@@ -12,7 +12,9 @@ import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-u
 import { InlineReviewStatus } from "@/features/documents/inline-review-status";
 import { FeeApprovalControls } from "@/features/fees/fee-approval-controls";
 import { getUserProfile } from "@/lib/profile";
-import { isAdminOrSuper, isSalesOrAdmin } from "@/lib/roles";
+import { isAdminOrSuper, isSalesOrAdmin, isSuperAdmin } from "@/lib/roles";
+import { ArchiveControls } from "@/features/archive/archive-controls";
+import { getArchiveInfo } from "@/features/archive/actions";
 import { getHubPrograms, getHubBatches } from "@/features/students/hub-actions";
 import { getBatchTransferHistory } from "@/features/students/batch-assignment-actions";
 import { BatchAssignmentControls } from "@/features/students/batch-assignment-controls";
@@ -146,6 +148,12 @@ export default async function StudentDetailPage({
   const isAdmin = isAdminOrSuper(role);
   const isSalesOrAbove = isSalesOrAdmin(role);
   const isViewer = role === "viewer";
+  const isSuperAdminUser = isSuperAdmin(role);
+  const isStudentArchived = !!(student as Record<string, unknown>).archived_at;
+
+  const archiveInfo = isAdmin
+    ? await getArchiveInfo("students", studentId)
+    : null;
 
   const latestApp = applications[0] as (typeof applications)[0] | undefined;
 
@@ -321,6 +329,7 @@ export default async function StudentDetailPage({
 
   const canGenerateContract =
     isAdmin &&
+    !isStudentArchived &&
     latestApp &&
     ["ready_for_contract", "contract_generated", "signature_pending", "signed"].includes(
       latestApp.status
@@ -338,13 +347,22 @@ export default async function StudentDetailPage({
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold text-zinc-900">
-              {student.legal_first_name}{" "}
-              {student.legal_middle_name
-                ? `${student.legal_middle_name} `
-                : ""}
-              {student.legal_last_name}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold text-zinc-900">
+                {student.legal_first_name}{" "}
+                {student.legal_middle_name
+                  ? `${student.legal_middle_name} `
+                  : ""}
+                {student.legal_last_name}
+              </h1>
+              {isStudentArchived && (
+                <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800">
+                  {(student as Record<string, unknown>).archive_reason
+                    ? `Archived - ${(student as Record<string, unknown>).archive_reason}`
+                    : "Archived"}
+                </span>
+              )}
+            </div>
             {student.student_number && (
               <p className="mt-1 text-sm text-zinc-500">
                 Student No. {student.student_number}
@@ -362,6 +380,24 @@ export default async function StudentDetailPage({
           )}
         </div>
       </div>
+
+      {isStudentArchived && (
+        <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-medium text-amber-800">
+            This student record is archived. All workflow actions are disabled.
+          </p>
+          {archiveInfo?.archivedAt && (
+            <p className="mt-1 text-xs text-amber-700">
+              Archived on {new Date(archiveInfo.archivedAt).toLocaleDateString("en-CA")}
+              {archiveInfo.archivedBy ? ` by ${archiveInfo.archivedBy}` : ""}
+              {archiveInfo.archiveReason ? ` - Reason: ${archiveInfo.archiveReason}` : ""}
+            </p>
+          )}
+          <p className="mt-1 text-xs text-amber-700">
+            Records, documents, contracts, fees, and history are preserved. Admin or super admin can restore this record.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-6">
         {/* 1. Student Summary */}
@@ -420,8 +456,8 @@ export default async function StudentDetailPage({
           </FieldGrid>
         </Section>
 
-        {/* 2. Edit Student Information - sales and admin */}
-        {isSalesOrAbove && (
+        {/* 2. Edit Student Information - sales and admin, hidden when archived */}
+        {isSalesOrAbove && !isStudentArchived && (
           <Section title="Edit Student Information">
             <StudentEditForm student={student} />
           </Section>
@@ -470,7 +506,7 @@ export default async function StudentDetailPage({
               )}
             </FieldGrid>
             <div className="mt-5 border-t border-zinc-100 pt-5">
-              {role === "sales" ? (
+              {role === "sales" && !isStudentArchived ? (
                 <SalesIntakeForm
                   application={{
                     id: latestApp.id,
@@ -618,7 +654,7 @@ export default async function StudentDetailPage({
               key={latestSalesChecklist?.updated_at ?? "new"}
               applicationId={latestApp.id}
               checklist={latestSalesChecklist ?? null}
-              readOnly={isViewer}
+              readOnly={isViewer || isStudentArchived}
             />
           </Section>
         )}
@@ -643,12 +679,13 @@ export default async function StudentDetailPage({
               adminNotes={latestApp.admin_notes}
               readinessItems={readinessItems}
               role={role}
+              readOnly={isStudentArchived}
             />
           </Section>
         )}
 
-        {/* 5b. Admin Program and Batch Assignment */}
-        {isAdmin && latestApp && (
+        {/* 5b. Admin Program and Batch Assignment - hidden when archived */}
+        {isAdmin && latestApp && !isStudentArchived && (
           <Section title="Admin - Program and Batch Assignment">
             <AdminApplicationForm
               application={{
@@ -735,7 +772,7 @@ export default async function StudentDetailPage({
                   currentBatchId={batch.id}
                   batches={batchesForProgram}
                   transferHistory={transferHistory}
-                  isAdmin={isAdmin}
+                  isAdmin={isAdmin && !isStudentArchived}
                 />
               )}
             </>
@@ -748,7 +785,7 @@ export default async function StudentDetailPage({
             <h2 className="text-base font-semibold text-zinc-900">Documents</h2>
           </div>
           <div className="px-6 py-5">
-            {isSalesOrAbove && (
+            {isSalesOrAbove && !isStudentArchived && (
               <div className="mb-5">
                 <EmbeddedDocumentUpload
                   studentId={studentId}
@@ -823,7 +860,7 @@ export default async function StudentDetailPage({
                             {docApp?.programs?.program_code ?? "--"}
                           </td>
                           <td className="px-4 py-2.5">
-                            {isAdmin ? (
+                            {isAdmin && !isStudentArchived ? (
                               <InlineReviewStatus
                                 documentId={doc.id}
                                 currentStatus={doc.review_status}
@@ -912,7 +949,7 @@ export default async function StudentDetailPage({
                     </div>
                   )
                 )}
-                {isAdmin ? (
+                {isAdmin && !isStudentArchived ? (
                   <>
                     <p className="mb-4 text-xs text-zinc-400">
                       This is the official admin checklist. Sales cannot edit this section.
@@ -1036,7 +1073,7 @@ export default async function StudentDetailPage({
                 </span>
               )}
             </div>
-            {latestApp && isAdmin && (
+            {latestApp && isAdmin && !isStudentArchived && (
               <Link
                 href={`/dashboard/fees/${latestApp.id}`}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
@@ -1164,7 +1201,7 @@ export default async function StudentDetailPage({
                   </div>
                 )}
 
-                {latestApp && (
+                {latestApp && !isStudentArchived && (
                   <FeeApprovalControls
                     feeScheduleId={latestFeeSchedule.id as string}
                     applicationId={latestApp.id}
@@ -1270,7 +1307,7 @@ export default async function StudentDetailPage({
             <h2 className="text-base font-semibold text-zinc-900">
               Contract - Word Export
             </h2>
-            {latestApp && isAdmin && (
+            {latestApp && isAdmin && !isStudentArchived && (
               <Link
                 href={`/dashboard/contracts/${latestApp.id}/preview`}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
@@ -1344,7 +1381,24 @@ export default async function StudentDetailPage({
           </Section>
         )}
 
-        {/* 13. Activity / Audit Placeholder */}
+        {/* 13. Archive and Delete Controls */}
+        {isAdmin && archiveInfo && (
+          <Section title="Archive and Delete">
+            <ArchiveControls
+              tableName="students"
+              recordId={studentId}
+              recordLabel="Student record"
+              isArchived={archiveInfo.archived}
+              archivedAt={archiveInfo.archivedAt}
+              archivedBy={archiveInfo.archivedBy}
+              archiveReason={archiveInfo.archiveReason}
+              canArchive={isAdmin}
+              canHardDelete={isSuperAdminUser}
+            />
+          </Section>
+        )}
+
+        {/* 14. Activity / Audit Placeholder */}
         {isAdmin && (
           <Section title="Activity / Audit Log">
             <EmptyState message="Activity and audit log will be available in a future update." />
