@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
 import type { ContractDetailData } from "@/features/contracts/actions";
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -200,6 +201,141 @@ function replaceParagraphText(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Marker constants
+// ---------------------------------------------------------------------------
+
+const ACADEMIC_MARKERS = [
+  { value: "canadian_secondary", text: "Grade 12 Ontario Secondary School Diploma" },
+  { value: "foreign_credential", text: "International Student and/or Applicant with foreign credentials" },
+  { value: "mature_student", text: "Mature student status may be granted" },
+];
+
+const ENGLISH_MARKERS = [
+  { value: "ielts", text: "IELTS" },
+  { value: "toefl_ibt", text: "TOEFL" },
+  { value: "cael", text: "CAEL" },
+  { value: "celpip", text: "Canadian English Language Proficiency Index Program" },
+  { value: "clb", text: "Canadian Language Benchmark Tests" },
+  { value: "duolingo", text: "Duolingo English Test" },
+  { value: "pte_academic", text: "Pearson PTE Academic" },
+  { value: "nacc_written_exam", text: "NACC Written Entrance Exam" },
+  { value: "two_years_canadian_postsecondary_english", text: "post-secondary study in English at a Canadian institution" },
+  { value: "two_years_international_postsecondary_english", text: "post-secondary study in English at an institution outside of Canada" },
+];
+
+const WINGDINGS_CHECK_RUN =
+  '<w:r><w:rPr><w:b/><w:bCs/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr><w:sym w:font="Wingdings" w:char="F0FE"/></w:r>';
+
+const CHECKED = "☒";
+const UNCHECKED = "☐";
+
+// ---------------------------------------------------------------------------
+// Marker helper functions
+// ---------------------------------------------------------------------------
+
+function removeWingdingsRuns(paragraphXml: string): string {
+  let result = paragraphXml;
+  const marker = '<w:sym w:font="Wingdings"';
+  let pos = result.indexOf(marker);
+  while (pos !== -1) {
+    const rSpace = result.lastIndexOf("<w:r ", pos);
+    const rAngle = result.lastIndexOf("<w:r>", pos);
+    const runStart = Math.max(rSpace, rAngle);
+    const runEnd = result.indexOf("</w:r>", pos);
+    if (runStart === -1 || runEnd === -1) break;
+    result = result.substring(0, runStart) + result.substring(runEnd + 6);
+    pos = result.indexOf(marker);
+  }
+  return result;
+}
+
+function removeBoldFormatting(paragraphXml: string): string {
+  return paragraphXml.replace(/<w:b\/>/g, "").replace(/<w:bCs\/>/g, "");
+}
+
+function addBoldFormatting(paragraphXml: string): string {
+  let result = paragraphXml;
+  result = result.replace(/<w:rPr>/g, "<w:rPr><w:b/><w:bCs/>");
+  const insertions: number[] = [];
+  const re = /<w:r[ >]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(result)) !== null) {
+    const tagEnd = result.indexOf(">", m.index + 3);
+    if (tagEnd === -1) continue;
+    const after = result.substring(tagEnd + 1, tagEnd + 8);
+    if (!after.startsWith("<w:rPr")) {
+      insertions.push(tagEnd + 1);
+    }
+  }
+  for (let i = insertions.length - 1; i >= 0; i--) {
+    const p = insertions[i];
+    result =
+      result.substring(0, p) +
+      "<w:rPr><w:b/><w:bCs/></w:rPr>" +
+      result.substring(p);
+  }
+  return result;
+}
+
+function insertCheckmarkAfterPPr(paragraphXml: string): string {
+  const tag = "</w:pPr>";
+  const pos = paragraphXml.indexOf(tag);
+  if (pos === -1) return paragraphXml;
+  const at = pos + tag.length;
+  return (
+    paragraphXml.substring(0, at) +
+    WINGDINGS_CHECK_RUN +
+    paragraphXml.substring(at)
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Academic/English marker application
+// ---------------------------------------------------------------------------
+
+function applyAcademicMarkers(
+  xml: string,
+  academicRoute: string | null
+): string {
+  for (const option of ACADEMIC_MARKERS) {
+    const para = findParagraph(xml, option.text);
+    if (!para) continue;
+    let content = para.content;
+    content = removeWingdingsRuns(content);
+    content = removeBoldFormatting(content);
+    if (academicRoute === option.value) {
+      content = addBoldFormatting(content);
+      content = insertCheckmarkAfterPPr(content);
+    }
+    xml = xml.substring(0, para.start) + content + xml.substring(para.end);
+  }
+  return xml;
+}
+
+function applyEnglishMarkers(
+  xml: string,
+  englishRoute: string | null
+): string {
+  for (const option of ENGLISH_MARKERS) {
+    const headingPos = xml.indexOf("English Language Proficiency");
+    if (headingPos === -1) continue;
+    const feesPos = xml.indexOf(">Fees<", headingPos);
+    const para = findParagraph(xml, option.text, headingPos);
+    if (!para) continue;
+    if (feesPos !== -1 && para.start >= feesPos) continue;
+    let content = para.content;
+    content = removeWingdingsRuns(content);
+    content = removeBoldFormatting(content);
+    if (englishRoute === option.value) {
+      content = addBoldFormatting(content);
+      content = insertCheckmarkAfterPPr(content);
+    }
+    xml = xml.substring(0, para.start) + content + xml.substring(para.end);
+  }
+  return xml;
+}
+
 
 // Reference data that will be replaced with actual student data
 const REF_STUDENT_NAME = "CHIDI GLORIA AROWOLO";
@@ -214,15 +350,34 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
   const templateContent = fs.readFileSync(templatePath);
   const zip = new PizZip(templateContent);
 
-  const docXmlFile = zip.file("word/document.xml");
-  if (!docXmlFile) throw new Error("Template missing document.xml");
-  let xml = docXmlFile.asText();
-
   const student = data.application.students;
   const program = data.application.programs;
   const batch = data.application.batches;
   const feeSchedule = data.feeSchedule;
   const installments = data.installments;
+  const checklist = data.checklist;
+
+  // ---------------------------------------------------------------
+  // International Student & Delivery: rendered via docxtemplater
+  // ---------------------------------------------------------------
+  const deliveryMethod = batch?.delivery_method ?? null;
+  const isInternational = student?.international_student ?? null;
+
+  const doc = new Docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+  });
+  doc.render({
+    international_yes: isInternational === true ? CHECKED : UNCHECKED,
+    international_no: isInternational === false ? CHECKED : UNCHECKED,
+    delivery_in_person: deliveryMethod === "in_person" ? CHECKED : UNCHECKED,
+    delivery_hybrid: deliveryMethod === "hybrid" ? CHECKED : UNCHECKED,
+    delivery_online: deliveryMethod === "online" ? CHECKED : UNCHECKED,
+  });
+
+  const docXmlFile = zip.file("word/document.xml");
+  if (!docXmlFile) throw new Error("Template missing document.xml");
+  let xml = docXmlFile.asText();
 
   const studentFullName =
     buildStudentFullName(student) || "________________________";
@@ -242,6 +397,12 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
   const hoursPerDay = batch?.class_time
     ? parseHoursFromTime(batch.class_time)
     : null;
+
+  // ---------------------------------------------------------------
+  // Dynamic markers: academic, English (Wingdings-based)
+  // ---------------------------------------------------------------
+  xml = applyAcademicMarkers(xml, checklist?.academic_route ?? null);
+  xml = applyEnglishMarkers(xml, checklist?.english_route ?? null);
 
   // ---------------------------------------------------------------
   // Page 1: Student information
