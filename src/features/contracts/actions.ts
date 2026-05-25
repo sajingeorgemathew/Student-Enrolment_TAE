@@ -30,6 +30,8 @@ export type ContractDetailData = {
     id: string;
     status: string;
     created_at: string;
+    contract_generated_at: string | null;
+    ready_for_contract_at: string | null;
     students: {
       id: string;
       student_number: string | null;
@@ -47,6 +49,11 @@ export type ContractDetailData = {
       province: string | null;
       postal_code: string | null;
       country: string | null;
+      permanent_address_line_1: string | null;
+      permanent_city: string | null;
+      permanent_province: string | null;
+      permanent_postal_code: string | null;
+      permanent_country: string | null;
       immigration_status: string | null;
       international_student: boolean | null;
     } | null;
@@ -143,6 +150,8 @@ export async function getContractDetail(
       id,
       status,
       created_at,
+      contract_generated_at,
+      ready_for_contract_at,
       students (
         id, student_number,
         legal_first_name, legal_middle_name, legal_last_name,
@@ -150,6 +159,9 @@ export async function getContractDetail(
         phone, alternate_phone, email,
         mailing_address_line_1, mailing_address_line_2,
         city, province, postal_code, country,
+        permanent_address_line_1,
+        permanent_city, permanent_province,
+        permanent_postal_code, permanent_country,
         immigration_status, international_student
       ),
       programs (
