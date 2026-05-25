@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TAE Admin - Premium Dashboard</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Hanken Grotesk and JetBrains Mono -->
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary-fixed": "#d6e3ff",
+                      "surface-dim": "#cbdbf5",
+                      "tertiary-container": "#002148",
+                      "on-error-container": "#93000a",
+                      "surface-container-highest": "#d3e4fe",
+                      "on-primary": "#ffffff",
+                      "on-secondary-fixed-variant": "#504531",
+                      "primary": "#000a1e",
+                      "on-secondary-container": "#6d614b",
+                      "surface-container-lowest": "#ffffff",
+                      "inverse-on-surface": "#eaf1ff",
+                      "tertiary": "#000b1f",
+                      "on-secondary-fixed": "#231a09",
+                      "secondary-fixed-dim": "#d5c5a9",
+                      "surface-container": "#e5eeff",
+                      "error-container": "#ffdad6",
+                      "surface-container-high": "#dce9ff",
+                      "surface-variant": "#d3e4fe",
+                      "primary-fixed-dim": "#aec7f6",
+                      "surface-bright": "#f8f9ff",
+                      "on-error": "#ffffff",
+                      "on-background": "#0b1c30",
+                      "surface-container-low": "#eff4ff",
+                      "secondary": "#695d47",
+                      "on-primary-container": "#708ab5",
+                      "error": "#ba1a1a",
+                      "background": "#f8f9ff",
+                      "primary-fixed": "#d6e3ff",
+                      "outline-variant": "#c4c6cf",
+                      "tertiary-fixed-dim": "#a9c7ff",
+                      "inverse-primary": "#aec7f6",
+                      "on-tertiary-fixed-variant": "#00468c",
+                      "secondary-fixed": "#f1e0c4",
+                      "on-tertiary-fixed": "#001b3d",
+                      "secondary-container": "#eedec1",
+                      "stone-gold": "#C5B396", /* Derived from logo 'T' */
+                      "surface": "#f8f9ff",
+                      "on-primary-fixed-variant": "#2d476f",
+                      "outline": "#74777f",
+                      "on-primary-fixed": "#001b3d",
+                      "on-surface-variant": "#44474e",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary-container": "#4889e5",
+                      "inverse-surface": "#213145",
+                      "primary-container": "#002147",
+                      "surface-tint": "#465f88",
+                      "on-tertiary": "#ffffff",
+                      "on-surface": "#0b1c30"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0px",
+                      "lg": "2px",
+                      "xl": "4px",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "32px",
+                      "stack-lg": "48px",
+                      "stack-md": "24px",
+                      "stack-sm": "12px",
+                      "sidebar-width": "300px",
+                      "container-max-width": "1280px",
+                      "margin-desktop": "48px",
+                      "margin-mobile": "20px"
+              },
+              "fontFamily": {
+                      "headline-md": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "body-sm": ["Hanken Grotesk"],
+                      "headline-lg-mobile": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"],
+                      "label-md": ["JetBrains Mono"],
+                      "headline-lg": ["Hanken Grotesk"],
+                      "headline-sm": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "headline-md": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                      "body-lg": ["20px", {"lineHeight": "32px", "fontWeight": "400"}],
+                      "body-sm": ["15px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-lg-mobile": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "body-md": ["17px", {"lineHeight": "26px", "fontWeight": "400"}],
+                      "label-md": ["13px", {"lineHeight": "18px", "letterSpacing": "0.1em", "fontWeight": "500"}],
+                      "headline-lg": ["40px", {"lineHeight": "48px", "fontWeight": "600"}],
+                      "headline-sm": ["22px", {"lineHeight": "30px", "fontWeight": "600"}],
+                      "display-lg": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.03em", "fontWeight": "700"}]
+              },
+              "boxShadow": {
+                "premium": "0 20px 50px -12px rgba(0, 10, 30, 0.12)",
+                "premium-hover": "0 30px 60px -12px rgba(0, 10, 30, 0.18)"
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+        }
+        .premium-border-gradient {
+            border-image: linear-gradient(to bottom, #C5B396, transparent) 1;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(197, 179, 150, 0.2);
+            border-radius: 10px;
+        }
+        .active-link {
+            background: linear-gradient(90deg, rgba(197, 179, 150, 0.15) 0%, transparent 100%);
+            border-left: 3px solid #C5B396;
+        }
+    </style>
+</head>
+<body class="bg-background font-body-md text-on-background antialiased">
+<!-- Sidebar Wrapper -->
+<aside class="fixed left-0 top-0 h-screen w-sidebar-width bg-primary text-on-primary flex flex-col z-50">
+<!-- Brand Header -->
+<div class="px-8 py-12 flex flex-col gap-6">
+<div class="flex flex-col gap-4">
+<img alt="TAE Full Color Logo" class="h-auto w-full object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXpiAuVmxDXS3eimITHFdKqjYqfE0VeB0Z6QJGn5VqI7Stm4BcOLCN2CIm5RfjR6j64zMoKipEoLhkZA6Ha_ki_0mye5gM1g7xIKxahEk8tvYSz-y8lvmPWmfrx5T2rYtF_P98oHJtNXm5d_Fq42Bocn-H10slMpA2OwPe_QAX_cpNV_7MYUMY-PuskbyPnG1IpASdqH4-8e12gP4r7jGIuO5L-8FFN8z5i4wk1ua6kpNX6sZ3abNxidQuxqbxAxT4kZIAQ_teTMU"/>
+<div class="h-[1px] w-12 bg-stone-gold/40"></div>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 flex flex-col overflow-y-auto py-4">
+<div class="mb-10">
+<a class="relative flex items-center gap-4 px-8 py-4 active-link text-on-primary font-medium tracking-wide transition-all group" href="#">
+<span class="material-symbols-outlined text-[22px] text-stone-gold" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-4 text-on-primary/60 hover:text-on-primary hover:bg-white/5 transition-all tracking-wide group" href="#">
+<span class="material-symbols-outlined text-[22px]" data-icon="menu_book">menu_book</span>
+<span>Programs</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-4 text-on-primary/60 hover:text-on-primary hover:bg-white/5 transition-all tracking-wide group" href="#">
+<span class="material-symbols-outlined text-[22px]" data-icon="layers">layers</span>
+<span>Batches</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-4 text-on-primary/60 hover:text-on-primary hover:bg-white/5 transition-all tracking-wide group" href="#">
+<span class="material-symbols-outlined text-[22px]" data-icon="group">group</span>
+<span>Students</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-4 text-on-primary/60 hover:text-on-primary hover:bg-white/5 transition-all tracking-wide group" href="#">
+<span class="material-symbols-outlined text-[22px]" data-icon="assignment">assignment</span>
+<span>Intakes</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-4 text-on-primary/60 hover:text-on-primary hover:bg-white/5 transition-all tracking-wide group" href="#">
+<span class="material-symbols-outlined text-[22px]" data-icon="settings">settings</span>
+<span>Admin</span>
+</a>
+</div>
+<!-- Module Views Section -->
+<div class="px-8 mb-4">
+<span class="font-label-md text-[11px] text-on-primary/30 uppercase tracking-[0.2em]">Extended Views</span>
+</div>
+<div class="space-y-1">
+<a class="flex items-center gap-4 px-8 py-3 text-on-primary/50 hover:text-on-primary hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="payments">payments</span>
+<span class="text-sm">Fees</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-3 text-on-primary/50 hover:text-on-primary hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="fact_check">fact_check</span>
+<span class="text-sm">Checklists</span>
+</a>
+<a class="flex items-center gap-4 px-8 py-3 text-on-primary/50 hover:text-on-primary hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]" data-icon="description">description</span>
+<span class="text-sm">Contracts</span>
+</a>
+</div>
+</nav>
+<!-- Sidebar Footer -->
+<div class="mt-auto p-8 bg-black/10">
+<div class="flex items-center gap-4 mb-6">
+<div class="w-12 h-12 border border-stone-gold/30 p-0.5">
+<div class="w-full h-full bg-stone-gold/20 flex items-center justify-center text-stone-gold font-bold text-lg">A</div>
+</div>
+<div class="flex flex-col">
+<span class="font-bold text-sm tracking-wide">Campus Admin</span>
+<span class="text-[11px] text-on-primary/40 uppercase tracking-wider">Primary Access</span>
+</div>
+</div>
+<a class="flex items-center gap-3 text-stone-gold hover:text-on-primary transition-colors text-xs font-bold tracking-widest uppercase" href="#">
+<span class="material-symbols-outlined text-[18px]" data-icon="logout">logout</span>
+<span>Secure Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-width min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center h-24 px-margin-desktop bg-white border-b border-outline-variant/30 sticky top-0 z-40">
+<div class="flex flex-col">
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">Institutional Dashboard</h1>
+<div class="flex items-center gap-2">
+<div class="w-1.5 h-1.5 rounded-full bg-stone-gold"></div>
+<span class="font-label-md text-label-md text-on-surface-variant">Session: Active Monitoring</span>
+</div>
+</div>
+<div class="flex items-center gap-8">
+<div class="flex gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-container-low transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+</div>
+<div class="h-10 w-[1px] bg-outline-variant/50"></div>
+<div class="flex items-center gap-4 cursor-pointer group">
+<div class="flex flex-col items-end">
+<span class="font-label-md text-[12px] text-on-surface font-bold group-hover:text-stone-gold transition-colors">ADMIN PROFILE</span>
+<span class="text-[10px] text-on-surface-variant tracking-widest">v4.2.0</span>
+</div>
+<div class="w-10 h-10 rounded-none bg-primary flex items-center justify-center text-stone-gold text-[14px] font-bold border border-stone-gold/30">N</div>
+</div>
+</div>
+</header>
+<!-- Content Area -->
+<div class="p-margin-desktop max-w-container-max-width mx-auto w-full flex-1">
+<!-- Greeting -->
+<section class="mb-stack-lg border-l-4 border-stone-gold pl-8 py-2">
+<h2 class="font-display-lg text-display-lg text-primary leading-none mb-4">Good morning, Admin</h2>
+<p class="font-body-lg text-on-surface-variant max-w-2xl">Overseeing academic excellence and administrative integrity across the Toronto Academy of Education ecosystem.</p>
+</section>
+<!-- Primary Grid (Refined Module Cards) -->
+<section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter mb-stack-lg">
+<!-- Card: Programs -->
+<div class="bg-white border border-outline-variant/30 p-8 flex flex-col gap-6 hover:shadow-premium hover:-translate-y-1 transition-all duration-500 group cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-12 -mt-12 group-hover:bg-stone-gold/10 transition-colors"></div>
+<div class="w-14 h-14 bg-primary flex items-center justify-center group-hover:bg-stone-gold transition-colors duration-500 shadow-lg">
+<span class="material-symbols-outlined text-white text-[32px] group-hover:text-primary transition-colors" data-icon="menu_book">menu_book</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-3">Academic Programs</h3>
+<p class="font-body-sm text-on-surface-variant leading-relaxed">Structured management of global curriculums and departmental cross-collaboration.</p>
+</div>
+<div class="mt-auto flex items-center text-primary font-bold text-[12px] tracking-[0.15em] gap-3 uppercase pt-4 border-t border-outline-variant/20">
+<span>Explore Programs</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform" data-icon="arrow_right_alt">arrow_right_alt</span>
+</div>
+</div>
+<!-- Card: Batches -->
+<div class="bg-white border border-outline-variant/30 p-8 flex flex-col gap-6 hover:shadow-premium hover:-translate-y-1 transition-all duration-500 group cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-12 -mt-12 group-hover:bg-stone-gold/10 transition-colors"></div>
+<div class="w-14 h-14 bg-primary flex items-center justify-center group-hover:bg-stone-gold transition-colors duration-500 shadow-lg">
+<span class="material-symbols-outlined text-white text-[32px] group-hover:text-primary transition-colors" data-icon="layers">layers</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-3">Cohorts &amp; Batches</h3>
+<p class="font-body-sm text-on-surface-variant leading-relaxed">Real-time monitoring of active student cycles, schedules, and faculty engagement.</p>
+</div>
+<div class="mt-auto flex items-center text-primary font-bold text-[12px] tracking-[0.15em] gap-3 uppercase pt-4 border-t border-outline-variant/20">
+<span>Manage Cohorts</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform" data-icon="arrow_right_alt">arrow_right_alt</span>
+</div>
+</div>
+<!-- Card: Students -->
+<div class="bg-white border border-outline-variant/30 p-8 flex flex-col gap-6 hover:shadow-premium hover:-translate-y-1 transition-all duration-500 group cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-12 -mt-12 group-hover:bg-stone-gold/10 transition-colors"></div>
+<div class="w-14 h-14 bg-primary flex items-center justify-center group-hover:bg-stone-gold transition-colors duration-500 shadow-lg">
+<span class="material-symbols-outlined text-white text-[32px] group-hover:text-primary transition-colors" data-icon="group">group</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-3">Student Registry</h3>
+<p class="font-body-sm text-on-surface-variant leading-relaxed">Advanced data repository for academic metrics, performance, and communication history.</p>
+</div>
+<div class="mt-auto flex items-center text-primary font-bold text-[12px] tracking-[0.15em] gap-3 uppercase pt-4 border-t border-outline-variant/20">
+<span>Access Registry</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform" data-icon="arrow_right_alt">arrow_right_alt</span>
+</div>
+</div>
+<!-- Card: Intakes -->
+<div class="bg-white border border-outline-variant/30 p-8 flex flex-col gap-6 hover:shadow-premium hover:-translate-y-1 transition-all duration-500 group cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-12 -mt-12 group-hover:bg-stone-gold/10 transition-colors"></div>
+<div class="w-14 h-14 bg-primary flex items-center justify-center group-hover:bg-stone-gold transition-colors duration-500 shadow-lg">
+<span class="material-symbols-outlined text-white text-[32px] group-hover:text-primary transition-colors" data-icon="assignment">assignment</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-3">Enrolment Intakes</h3>
+<p class="font-body-sm text-on-surface-variant leading-relaxed">Strategic analysis of seasonal enrollment cycles and pending admission applications.</p>
+</div>
+<div class="mt-auto flex items-center text-primary font-bold text-[12px] tracking-[0.15em] gap-3 uppercase pt-4 border-t border-outline-variant/20">
+<span>Review Intake</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform" data-icon="arrow_right_alt">arrow_right_alt</span>
+</div>
+</div>
+<!-- Card: Admin Tools -->
+<div class="bg-white border border-outline-variant/30 p-8 flex flex-col gap-6 hover:shadow-premium hover:-translate-y-1 transition-all duration-500 group cursor-pointer relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-12 -mt-12 group-hover:bg-stone-gold/10 transition-colors"></div>
+<div class="w-14 h-14 bg-primary flex items-center justify-center group-hover:bg-stone-gold transition-colors duration-500 shadow-lg">
+<span class="material-symbols-outlined text-white text-[32px] group-hover:text-primary transition-colors" data-icon="settings">settings</span>
+</div>
+<div>
+<h3 class="font-headline-sm text-headline-sm text-primary mb-3">Infrastructure Tools</h3>
+<p class="font-body-sm text-on-surface-variant leading-relaxed">Global system architecture control, identity management, and campus security.</p>
+</div>
+<div class="mt-auto flex items-center text-primary font-bold text-[12px] tracking-[0.15em] gap-3 uppercase pt-4 border-t border-outline-variant/20">
+<span>System Settings</span>
+<span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform" data-icon="arrow_right_alt">arrow_right_alt</span>
+</div>
+</div>
+<!-- Premium Visual Highlight -->
+<div class="relative overflow-hidden bg-primary shadow-premium">
+<img alt="Academic Building" class="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-luminosity grayscale hover:grayscale-0 transition-all duration-1000" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAaXt4UgGjbzkJGft7F3FhtjIX9gwBW3CKsWlaRms1QR7ssFMi5xqr5Jwy4DZSlIxPg3e28Lw-4Ko4zvb4N6kv6Y6gYdVV2YntSojVp06Dsfle_GNSO_UVTbX6bG2h_L1EkiBu0JzxwmMaXr-g7_tqizLG_US3gtUEMERDathdOw3ADGz2RaB-7GE3_luITZ7spyVklG8X5wqAZxGJf9WaRxTs8z9PE3EoGpLVdk1RDo9Db9Jne5sJinV5E3u_MQLX-POTwTcjP4Fo"/>
+<div class="relative p-10 h-full flex flex-col justify-end bg-gradient-to-t from-primary via-primary/60 to-transparent">
+<div class="flex items-center gap-4 mb-4">
+<div class="h-[1px] w-12 bg-stone-gold"></div>
+<span class="font-label-md text-[12px] text-stone-gold uppercase tracking-[0.2em]">Campus Insight</span>
+</div>
+<h4 class="font-headline-md text-white leading-tight mb-2">Pioneering Education through Digital Governance</h4>
+<p class="text-white/60 text-sm italic">Standard of Excellence v4.2</p>
+</div>
+</div>
+</section>
+<!-- Secondary Views Divider -->
+<div class="flex items-center gap-6 mb-stack-md py-4">
+<h3 class="font-label-md text-primary font-bold uppercase tracking-[0.25em]">Critical Operations</h3>
+<div class="h-[1px] bg-outline-variant/40 flex-1"></div>
+</div>
+<!-- Secondary Grid (Classy Minimalist Cards) -->
+<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter mb-margin-desktop">
+<!-- Documents -->
+<div class="bg-white border border-outline-variant/30 p-8 hover:border-stone-gold transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-premium">
+<div class="flex items-start justify-between mb-8">
+<div class="p-3 bg-primary/5 group-hover:bg-stone-gold transition-colors">
+<span class="material-symbols-outlined text-primary group-hover:text-white" data-icon="description">description</span>
+</div>
+<span class="text-[10px] font-black tracking-widest text-on-surface-variant bg-surface-container px-3 py-1 uppercase">24 Archive</span>
+</div>
+<h4 class="font-headline-sm text-[18px] text-primary mb-2">Legal Docs</h4>
+<p class="font-body-sm text-[13px] text-on-surface-variant leading-relaxed">Compliance documentation and academic records repository.</p>
+</div>
+<!-- Fees -->
+<div class="bg-white border border-outline-variant/30 p-8 hover:border-stone-gold transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-premium">
+<div class="flex items-start justify-between mb-8">
+<div class="p-3 bg-primary/5 group-hover:bg-stone-gold transition-colors">
+<span class="material-symbols-outlined text-primary group-hover:text-white" data-icon="payments">payments</span>
+</div>
+<span class="text-[10px] font-black tracking-widest text-on-surface-variant bg-surface-container px-3 py-1 uppercase">Ledger</span>
+</div>
+<h4 class="font-headline-sm text-[18px] text-primary mb-2">Financials</h4>
+<p class="font-body-sm text-[13px] text-on-surface-variant leading-relaxed">Fiscal reconciliation, fee structures, and audit-ready reporting.</p>
+</div>
+<!-- Checklists -->
+<div class="bg-white border border-outline-variant/30 p-8 hover:border-stone-gold transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-premium">
+<div class="flex items-start justify-between mb-8">
+<div class="p-3 bg-primary/5 group-hover:bg-stone-gold transition-colors">
+<span class="material-symbols-outlined text-primary group-hover:text-white" data-icon="fact_check">fact_check</span>
+</div>
+<span class="text-[10px] font-black tracking-widest text-on-surface-variant bg-surface-container px-3 py-1 uppercase">8 Tasks</span>
+</div>
+<h4 class="font-headline-sm text-[18px] text-primary mb-2">Compliance</h4>
+<p class="font-body-sm text-[13px] text-on-surface-variant leading-relaxed">Standardized intake checklists and regulatory status tracking.</p>
+</div>
+<!-- Contracts -->
+<div class="bg-white border border-outline-variant/30 p-8 hover:border-stone-gold transition-all duration-300 cursor-pointer group shadow-sm hover:shadow-premium">
+<div class="flex items-start justify-between mb-8">
+<div class="p-3 bg-primary/5 group-hover:bg-stone-gold transition-colors">
+<span class="material-symbols-outlined text-primary group-hover:text-white" data-icon="history_edu">history_edu</span>
+</div>
+<span class="text-[10px] font-black tracking-widest text-on-surface-variant bg-surface-container px-3 py-1 uppercase">Secured</span>
+</div>
+<h4 class="font-headline-sm text-[18px] text-primary mb-2">Agreements</h4>
+<p class="font-body-sm text-[13px] text-on-surface-variant leading-relaxed">Enrollment binding contracts and digital governance signatures.</p>
+</div>
+</section>
+</div>
+<!-- Footer Info -->
+<footer class="mt-auto py-12 px-margin-desktop border-t border-outline-variant/20 bg-white">
+<div class="flex flex-col md:flex-row justify-between items-center gap-6">
+<p class="font-label-md text-[11px] text-on-surface-variant/70 tracking-[0.15em] uppercase">
+                © 2024 TORONTO ACADEMY OF EDUCATION • LEGACY OF EXCELLENCE
+            </p>
+<div class="flex items-center gap-8 text-[11px] font-bold tracking-widest text-primary/40 uppercase">
+<a class="hover:text-stone-gold transition-colors" href="#">System Health</a>
+<a class="hover:text-stone-gold transition-colors" href="#">Legal Archive</a>
+<a class="hover:text-stone-gold transition-colors" href="#">Support</a>
+</div>
+</div>
+</footer>
+</main>
+<!-- FAB: Refined and Classy -->
+<button class="fixed bottom-12 right-12 bg-primary text-white w-16 h-16 rounded-none shadow-premium flex items-center justify-center hover:bg-stone-gold hover:text-primary transition-all duration-500 group z-50 overflow-hidden">
+<span class="material-symbols-outlined text-[32px] transition-transform duration-500 group-hover:rotate-90" data-icon="add">add</span>
+<div class="absolute right-20 bg-primary text-stone-gold px-6 py-3 border border-stone-gold/30 opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-500 whitespace-nowrap pointer-events-none text-[11px] font-black tracking-[0.2em] uppercase">
+        Create New Entry
+    </div>
+</button>
+<script>
+    // Smooth micro-interactions for premium cards
+    document.querySelectorAll('.bg-white.border').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            if (!card.classList.contains('active-link')) {
+                card.style.borderColor = 'rgba(197, 179, 150, 0.4)';
+            }
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.borderColor = '';
+        });
+    });
+</script>
+</body></html>
