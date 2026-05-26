@@ -239,3 +239,49 @@ export async function getContractDetail(
     contract,
   };
 }
+
+export type ContractGenerationRecord = {
+  id: string;
+  student_id: string;
+  application_id: string;
+  generated_by: string;
+  generated_at: string;
+  file_name: string;
+  storage_path: string | null;
+  status: string;
+  created_at: string;
+  generated_by_name?: string | null;
+};
+
+export async function getContractGenerations(
+  studentId: string
+): Promise<ContractGenerationRecord[]> {
+  const supabase = await createClient();
+
+  const { data: records } = await supabase
+    .from("contract_generations")
+    .select("id, student_id, application_id, generated_by, generated_at, file_name, storage_path, status, created_at")
+    .eq("student_id", studentId)
+    .order("generated_at", { ascending: false });
+
+  if (!records || records.length === 0) return [];
+
+  const generatorIds = [...new Set(records.map((r) => r.generated_by))];
+  let profileMap: Record<string, string> = {};
+  if (generatorIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", generatorIds);
+    if (profiles) {
+      profileMap = Object.fromEntries(
+        profiles.map((p) => [p.id, p.full_name || p.email || p.id])
+      );
+    }
+  }
+
+  return records.map((r) => ({
+    ...r,
+    generated_by_name: profileMap[r.generated_by] ?? null,
+  }));
+}

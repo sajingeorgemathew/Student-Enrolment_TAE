@@ -215,6 +215,34 @@ export async function getStudentById(studentId: string) {
     }
   }
 
+  const { data: contractGenerations } = await supabase
+    .from("contract_generations")
+    .select("id, student_id, application_id, generated_by, generated_at, file_name, storage_path, status, created_at")
+    .eq("student_id", studentId)
+    .order("generated_at", { ascending: false });
+
+  const generatorIds = new Set<string>();
+  for (const gen of contractGenerations ?? []) {
+    if (gen.generated_by) generatorIds.add(gen.generated_by);
+  }
+  let generatorProfiles: Record<string, string> = {};
+  if (generatorIds.size > 0) {
+    const { data: genProfiles } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", Array.from(generatorIds));
+    if (genProfiles) {
+      generatorProfiles = Object.fromEntries(
+        genProfiles.map((p) => [p.id, p.full_name || p.email || p.id])
+      );
+    }
+  }
+
+  const contractGenerationsWithNames = (contractGenerations ?? []).map((r) => ({
+    ...r,
+    generated_by_name: generatorProfiles[r.generated_by] ?? null,
+  }));
+
   return {
     student,
     applications: applications ?? [],
@@ -225,6 +253,7 @@ export async function getStudentById(studentId: string) {
     feeSchedules,
     installments,
     ownerProfiles,
+    contractGenerations: contractGenerationsWithNames,
   };
 }
 

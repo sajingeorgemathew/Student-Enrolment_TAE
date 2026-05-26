@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
   const now = new Date().toISOString();
+  const studentId = student?.id;
 
   if (appStatus === "ready_for_contract") {
     await supabase
@@ -74,7 +75,42 @@ export async function GET(request: NextRequest) {
       .eq("id", applicationId);
   }
 
-  const studentId = student?.id;
+  let storagePath: string | null = null;
+  if (studentId) {
+    const safeName = fileName.replace(/[^a-zA-Z0-9._\- ]/g, "_");
+    const pathKey = `${studentId}/contracts/${Date.now()}-${safeName}`;
+    const { error: uploadError } = await supabase.storage
+      .from("student-documents")
+      .upload(pathKey, body, {
+        contentType:
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: false,
+      });
+    if (!uploadError) {
+      storagePath = pathKey;
+    }
+  }
+
+  if (studentId) {
+    const { error: recordError } = await supabase
+      .from("contract_generations")
+      .insert({
+        student_id: studentId,
+        application_id: applicationId,
+        generated_by: profile.id,
+        generated_at: now,
+        file_name: fileName,
+        storage_path: storagePath,
+        status: "generated",
+      });
+    if (recordError) {
+      console.error(
+        "Failed to create contract generation record:",
+        recordError.message
+      );
+    }
+  }
+
   if (studentId) {
     revalidatePath(`/dashboard/students/${studentId}`);
   }
