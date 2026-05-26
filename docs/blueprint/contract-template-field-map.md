@@ -558,22 +558,24 @@ The class schedule is a 7-column table (Monday through Sunday).
 
 ### Current behavior
 
-- The `{class_time}` placeholder is placed in each day's Timings cell
-- The `{hours_per_day}` placeholder is placed in each day's Hours cell
-- docxtemplater replaces all instances with the same value
-- The template does not distinguish active days from inactive days
+- The template has "8:00AM-2:00PM" in Mon-Fri timing cells and "6" in Mon-Fri hours cells
+- Saturday and Sunday cells are blank in the template
+- During generation, `getScheduleForBatch` determines timing and hours from:
+  1. `batches.class_time` (parsed and formatted to display format)
+  2. Batch name preset detection ("morning" or "evening" in batch name)
+  3. Returns null for unknown batches (timing cells cleared to blank)
+- `formatClassTimeDisplay` converts raw time (e.g. "4:30PM-10:30PM") to display format ("4:30 PM to 10:30 PM")
+- Hours are calculated by parsing start/end times from class_time
 
-### Known issue
+### Display format
 
-The Word template puts class_time and hours_per_day in every day column. The HTML preview correctly uses batch.class_days to filter active days, but the DOCX export fills all day columns with the same timing.
+- Morning: "8:00 AM to 2:00 PM"
+- Evening: "4:30 PM to 10:30 PM"
+- Format rule: "H:MM AM to H:MM PM" with spaces around AM/PM and "to" separator
 
-### Batch timing rules
+### Known limitation
 
-- Morning batch example: 8:00 AM - 2:00 PM
-- Evening batch example: 4:30 PM - 10:30 PM
-- The timing must come from the batch record (batches.class_time)
-- Hours per day is calculated: parse start/end times, compute difference in hours
-- Do not hardcode one timing for all batches
+The DOCX export fills all Mon-Fri cells with the same timing. If `class_days` specified fewer weekdays (e.g. Mon-Wed-Fri only), inactive weekday cells are not individually cleared. The HTML preview correctly uses batch.class_days to filter active days.
 
 ---
 
@@ -653,14 +655,14 @@ Source: `payment_installments` table, ordered by installment_number
 | 6 | Student Undertaking | Student | Student | Both blank for external signing |
 | 7 | Acknowledgement (first) | Student | Student | Both blank for external signing |
 | 7 | Contract Terms (second) | Student | Student | Both blank for external signing |
-| 7 | Officer/Registrar/Agent | College representative | College representative | Both blank |
+| 7 | Officer/Registrar/Agent | College representative | College representative | Signature blank, date filled with generation date |
 | 8 | Consent to Personal Info | Student | Student | Both blank for external signing |
 | 11 | Medical Disclaimer | Student | Student | Both blank for external signing |
 | 12 | VSS Disclaimer | Student | Student | Both blank for external signing |
 | 13-14 | Practicum Acknowledgement | Student | Student | Both blank for external signing |
-| 13-14 | Practicum Acknowledgement | College Representative | College Representative | Both blank |
+| 13-14 | Practicum Acknowledgement | College Representative | College Representative | Signature blank, date filled with generation date |
 | 14-15 | Immigration Acknowledgement | Student | Student | Both blank for external signing |
-| 14-15 | Immigration Acknowledgement | College Representative | College Representative | Both blank |
+| 14-15 | Immigration Acknowledgement | College Representative | College Representative | Signature blank, date filled with generation date |
 | 15 | Photo/Video Consent | Student | Student | Both blank for external signing |
 
 ### Rules
@@ -668,7 +670,7 @@ Source: `payment_installments` table, ordered by installment_number
 - All student signature and date fields remain blank in the generated DOCX
 - Student signature/date fields are intended for external signing (print-and-sign, or future digital signing workflow)
 - College Representative signature fields remain blank in the generated DOCX
-- College Representative date fields can use the generated date only if explicitly mapped in a future ticket
+- College Representative date fields are filled with the generation date (DD/MM/YYYY) on pages 7, 13-14, and 14-15
 - The `{contract_date}` on page 1 is the contract effective date, not a signature date
 - Signature lines in the template are preserved as underline runs in the Word XML
 
@@ -679,11 +681,11 @@ Source: `payment_installments` table, ordered by installment_number
 | Location | Field | Current State | Rule |
 |---|---|---|---|
 | Page 7 | Signature of Admission Officer, Registrar, Agent | Blank underline | Leave blank for manual signing |
-| Page 7 | Date (officer) | Blank underline | Leave blank or use generated date if explicitly configured |
+| Page 7 | Date (officer) | Filled | Generation date in DD/MM/YYYY format |
 | Pages 13-14 | College Representative | Blank underline "__________________ __" | Leave blank |
-| Pages 13-14 | College Representative Date | Blank underline | Leave blank |
+| Pages 13-14 | College Representative Date | Filled | Generation date in DD/MM/YYYY format |
 | Pages 14-15 | College Representative | Blank underline "_____________________ __" | Leave blank |
-| Pages 14-15 | College Representative Date | Blank underline | Leave blank |
+| Pages 14-15 | College Representative Date | Filled | Generation date in DD/MM/YYYY format |
 
 There is no `college_representative_name` placeholder in the current template. If a future ticket adds this, the source would be the `profiles` table (generated_by user's full_name).
 

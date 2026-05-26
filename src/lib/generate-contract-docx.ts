@@ -73,6 +73,43 @@ function parseHoursFromTime(classTime: string): number | null {
   return diff > 0 ? diff : null;
 }
 
+function formatClassTimeDisplay(classTime: string): string {
+  const match = classTime.match(
+    /(\d{1,2}:\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}:\d{2})\s*(AM|PM)/i
+  );
+  if (!match) return classTime;
+  const [, startTime, startPeriod, endTime, endPeriod] = match;
+  return `${startTime} ${startPeriod.toUpperCase()} to ${endTime} ${endPeriod.toUpperCase()}`;
+}
+
+const MORNING_PRESET = { timing: "8:00 AM to 2:00 PM", hours: "6" };
+const EVENING_PRESET = { timing: "4:30 PM to 10:30 PM", hours: "6" };
+
+function getScheduleForBatch(
+  batch: { batch_name: string; class_time: string | null } | null
+): { timing: string; hours: string } | null {
+  if (!batch) return null;
+  if (batch.class_time) {
+    const hours = parseHoursFromTime(batch.class_time);
+    return {
+      timing: formatClassTimeDisplay(batch.class_time),
+      hours: hours != null ? String(hours) : "",
+    };
+  }
+  const name = batch.batch_name.toLowerCase();
+  if (name.includes("morning")) return MORNING_PRESET;
+  if (name.includes("evening")) return EVENING_PRESET;
+  return null;
+}
+
+function formatGenerationDate(): string {
+  const now = new Date();
+  const dd = String(now.getDate()).padStart(2, "0");
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const yyyy = now.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
 // ---------------------------------------------------------------------------
 // XML-level text replacement
 // ---------------------------------------------------------------------------
@@ -394,10 +431,6 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
     ? Math.round(Number(program.practicum_hours) / 3)
     : null;
 
-  const hoursPerDay = batch?.class_time
-    ? parseHoursFromTime(batch.class_time)
-    : null;
-
   // ---------------------------------------------------------------
   // Dynamic markers: academic, English (Wingdings-based)
   // ---------------------------------------------------------------
@@ -548,18 +581,19 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
   // ---------------------------------------------------------------
   // Class schedule table
   // ---------------------------------------------------------------
+  const schedule = getScheduleForBatch(batch);
   const csLabelPos = xml.indexOf("Class Schedule");
   if (csLabelPos !== -1) {
     const tblStart = xml.indexOf("<w:tbl>", csLabelPos);
     if (tblStart !== -1) {
       const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
       let tbl = xml.substring(tblStart, tblEnd);
-      const classTime = batch?.class_time || "";
-      const hpd = hoursPerDay != null ? String(hoursPerDay) : "";
-      tbl = tbl.replace(/>8:00AM-2:00PM</g, ">" + classTime + "<");
+      const formattedTime = schedule?.timing || "";
+      const formattedHours = schedule?.hours || "";
+      tbl = tbl.replace(/>8:00AM-2:00PM</g, ">" + formattedTime + "<");
       tbl = tbl.replace(
         /(<w:t[^>]*>)6(<\/w:t>)/g,
-        "$1" + hpd + "$2"
+        "$1" + formattedHours + "$2"
       );
       xml = xml.substring(0, tblStart) + tbl + xml.substring(tblEnd);
     }
@@ -716,6 +750,40 @@ export function generateContractDocx(data: ContractDetailData): Buffer {
     "g"
   );
   xml = xml.replace(progRe, "$1" + programName + "$2");
+
+  // ---------------------------------------------------------------
+  // College administrator dates (generation date in DD/MM/YYYY)
+  // Student date fields intentionally left blank for external signing.
+  // ---------------------------------------------------------------
+  const adminDate = formatGenerationDate();
+
+  // Page 14: College Representative #2 date (replace last first to avoid position shift)
+  const cr1Para = findParagraph(xml, "College Representative:");
+  if (cr1Para) {
+    xml = replaceParagraphText(
+      xml,
+      "College Representative:",
+      "Date:",
+      "Date: " + adminDate,
+      cr1Para.end
+    );
+  }
+
+  // Page 13: College Representative #1 date
+  xml = replaceParagraphText(
+    xml,
+    "College Representative:",
+    "Date:",
+    "Date: " + adminDate
+  );
+
+  // Page 6: Admission Officer / Registrar / Agent date
+  xml = replaceParagraphText(
+    xml,
+    "Signature of Admission Officer",
+    "Date",
+    "Date: " + adminDate
+  );
 
   // ---------------------------------------------------------------
   // Save the modified XML back

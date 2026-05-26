@@ -355,9 +355,162 @@ verifyXml(buf5, "not_required English", [
   }},
 ]);
 
+// Test 6: Evening batch schedule
+const testData6 = JSON.parse(JSON.stringify(testData)) as ContractDetailData;
+testData6.application.batches!.batch_name = "PSW Batch 6 - Evening";
+testData6.application.batches!.batch_code = "PSW-B6-PM";
+testData6.application.batches!.class_time = "4:30PM-10:30PM";
+
+console.log("\n=== Test 6: Evening batch schedule ===");
+const buf6 = generateContractDocx(testData6);
+const outPath6 = path.join(process.cwd(), "test-output-schedule-evening.docx");
+fs.writeFileSync(outPath6, buf6);
+console.log(`Written: ${outPath6}`);
+
+verifyXml(buf6, "Evening schedule", [
+  { name: "timing shows 4:30 PM to 10:30 PM", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return tbl.includes("4:30 PM to 10:30 PM");
+  }},
+  { name: "timing does NOT show 4:30 AM", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return !tbl.includes("4:30 AM");
+  }},
+  { name: "hours shows 6", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return tbl.includes(">6<");
+  }},
+]);
+
+// Test 7: Morning batch schedule (verify formatting)
+console.log("\n=== Test 7: Morning batch schedule (existing test data) ===");
+const outPath7 = path.join(process.cwd(), "test-output-schedule-morning.docx");
+fs.writeFileSync(outPath7, buf1);
+console.log(`Written: ${outPath7}`);
+
+verifyXml(buf1, "Morning schedule", [
+  { name: "timing shows 8:00 AM to 2:00 PM", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return tbl.includes("8:00 AM to 2:00 PM");
+  }},
+  { name: "timing does NOT show raw 8:00AM-2:00PM", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return !tbl.includes("8:00AM-2:00PM");
+  }},
+]);
+
+// Test 8: College admin date + student date checks
+console.log("\n=== Test 8: College admin dates and student dates ===");
+verifyXml(buf1, "College admin dates", [
+  { name: "Admission Officer paragraph has Date:", test: (xml) => {
+    const para = getParaCombinedText(xml, "Signature of Admission Officer");
+    return /Date:\s*\d{2}\/\d{2}\/\d{4}/.test(para);
+  }},
+  { name: "College Rep #1 has date", test: (xml) => {
+    const pos = xml.indexOf("College Representative:");
+    const pStart = xml.lastIndexOf("<w:p", pos);
+    const pEnd = xml.indexOf("</w:p>", pos) + 6;
+    const para = xml.substring(pStart, pEnd);
+    const re = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let m; const texts = [];
+    while ((m = re.exec(para)) !== null) texts.push(m[1]);
+    return /Date:\s*\d{2}\/\d{2}\/\d{4}/.test(texts.join(""));
+  }},
+  { name: "College Rep #2 has date", test: (xml) => {
+    const pos1 = xml.indexOf("College Representative:");
+    const pEnd1 = xml.indexOf("</w:p>", pos1) + 6;
+    const pos2 = xml.indexOf("College Representative:", pEnd1);
+    if (pos2 === -1) return false;
+    const pStart2 = xml.lastIndexOf("<w:p", pos2);
+    const pEnd2 = xml.indexOf("</w:p>", pos2) + 6;
+    const para = xml.substring(pStart2, pEnd2);
+    const re = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let m; const texts = [];
+    while ((m = re.exec(para)) !== null) texts.push(m[1]);
+    return /Date:\s*\d{2}\/\d{2}\/\d{4}/.test(texts.join(""));
+  }},
+  { name: "Student Signature dates remain blank (no DD/MM/YYYY)", test: (xml) => {
+    const re = /<w:p[ >]/g;
+    let m;
+    while ((m = re.exec(xml)) !== null) {
+      const pEnd = xml.indexOf("</w:p>", m.index);
+      if (pEnd === -1) continue;
+      const para = xml.substring(m.index, pEnd + 6);
+      const tRe = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+      let tm; const texts = [];
+      while ((tm = tRe.exec(para)) !== null) texts.push(tm[1]);
+      const combined = texts.join("");
+      if (combined.includes("Student Signature") && combined.includes("Date")) {
+        if (/Date:?\s*\d{2}\/\d{2}\/\d{4}/.test(combined)) return false;
+      }
+    }
+    return true;
+  }},
+]);
+
+// Test 9: Preset detection from batch name (no class_time)
+const testData9 = JSON.parse(JSON.stringify(testData)) as ContractDetailData;
+testData9.application.batches!.class_time = null;
+testData9.application.batches!.batch_name = "PSW Batch 7 - Evening";
+
+console.log("\n=== Test 9: Preset detection from batch name (evening, no class_time) ===");
+const buf9 = generateContractDocx(testData9);
+
+verifyXml(buf9, "Preset evening schedule", [
+  { name: "timing shows 4:30 PM to 10:30 PM", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return tbl.includes("4:30 PM to 10:30 PM");
+  }},
+  { name: "hours shows 6", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return tbl.includes(">6<");
+  }},
+]);
+
+// Test 10: Unknown batch (no class_time, no morning/evening in name)
+const testData10 = JSON.parse(JSON.stringify(testData)) as ContractDetailData;
+testData10.application.batches!.class_time = null;
+testData10.application.batches!.batch_name = "PSW Batch 8 - Custom";
+
+console.log("\n=== Test 10: Unknown batch schedule (blanks preserved) ===");
+const buf10 = generateContractDocx(testData10);
+
+verifyXml(buf10, "Unknown batch schedule", [
+  { name: "timing cells cleared (no 8:00AM-2:00PM)", test: (xml) => {
+    const csPos = xml.indexOf("Class Schedule");
+    const tblStart = xml.indexOf("<w:tbl>", csPos);
+    const tblEnd = xml.indexOf("</w:tbl>", tblStart) + 8;
+    const tbl = xml.substring(tblStart, tblEnd);
+    return !tbl.includes("8:00AM-2:00PM");
+  }},
+]);
+
 console.log("\n=== All tests complete ===");
 console.log("Test DOCX files written to project root:");
 console.log("  test-output-markers-1.docx (canadian_secondary + ielts + in_person + intl=true)");
 console.log("  test-output-markers-2.docx (mature_student + nacc + online + intl=false)");
 console.log("  test-output-markers-3.docx (foreign_credential + duolingo + hybrid + intl=null)");
 console.log("  test-output-markers-4.docx (all null - no markers)");
+console.log("  test-output-schedule-morning.docx (morning batch)");
+console.log("  test-output-schedule-evening.docx (evening batch)");
