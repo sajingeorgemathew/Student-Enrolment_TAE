@@ -8,6 +8,7 @@ import { AdminApplicationForm } from "@/features/students/admin-application-form
 import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
 import { ChecklistForm } from "@/features/checklists/checklist-form";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
+import { ContractGenerationHistory } from "@/features/contracts/contract-generation-history";
 import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
 import { InlineReviewStatus } from "@/features/documents/inline-review-status";
 import { FeeApprovalControls } from "@/features/fees/fee-approval-controls";
@@ -142,6 +143,7 @@ export default async function StudentDetailPage({
     feeSchedules,
     installments,
     ownerProfiles,
+    contractGenerations,
   } = data;
 
   const role = profile?.role ?? null;
@@ -1368,6 +1370,16 @@ export default async function StudentDetailPage({
             ) : (
               <EmptyState message="Contract generation will be available once this application is marked ready for contract." />
             )}
+
+            {contractGenerations.length > 0 && (
+              <div className="mt-5 border-t border-zinc-100 pt-5">
+                <h3 className="mb-3 text-sm font-medium text-zinc-700">
+                  Generation History
+                </h3>
+                <ContractGenerationHistory generations={contractGenerations} />
+              </div>
+            )}
+
             <p className="mt-3 text-xs text-zinc-400">
               Official contract output is Word DOCX only.
             </p>
