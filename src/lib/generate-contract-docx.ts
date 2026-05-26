@@ -227,8 +227,8 @@ const ENGLISH_MARKERS = [
 const WINGDINGS_CHECK_RUN =
   '<w:r><w:rPr><w:b/><w:bCs/><w:sz w:val="28"/><w:szCs w:val="28"/></w:rPr><w:sym w:font="Wingdings" w:char="F0FE"/></w:r>';
 
-const CHECKED = "☒";
-const UNCHECKED = "☐";
+const CHECKED = "[X]";
+const UNCHECKED = "[ ]";
 
 // ---------------------------------------------------------------------------
 // Marker helper functions
