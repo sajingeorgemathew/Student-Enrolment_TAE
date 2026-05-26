@@ -20,7 +20,7 @@ export default async function DashboardLayout({
   const profile = await getUserProfile();
 
   return (
-    <div className="flex h-screen bg-zinc-50 print:block print:h-auto print:bg-white">
+    <div className="flex h-screen bg-tae-surface print:block print:h-auto print:bg-white">
       <div className="no-print">
         <Sidebar
           userEmail={user.email ?? ""}
@@ -29,7 +29,7 @@ export default async function DashboardLayout({
         />
       </div>
       <main className="flex-1 overflow-y-auto print:overflow-visible">
-        <div className="mx-auto max-w-7xl px-6 py-8 print:max-w-none print:px-0 print:py-0">
+        <div className="mx-auto max-w-7xl px-12 py-10 print:max-w-none print:px-0 print:py-0">
           {!profile && <ProfileMissingBanner />}
           {children}
         </div>

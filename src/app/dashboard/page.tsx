@@ -1,15 +1,16 @@
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper } from "@/lib/roles";
+import Link from "next/link";
 import {
   ClipboardList,
   Users,
   BookOpen,
   Layers,
-  FileText,
   DollarSign,
   ScrollText,
   ClipboardCheck,
   Settings,
+  ArrowRight,
 } from "lucide-react";
 
 type DashCard = {
@@ -17,65 +18,72 @@ type DashCard = {
   description: string;
   href: string;
   icon: typeof BookOpen;
+  cta: string;
   adminOnly?: boolean;
 };
 
 const primaryCards: DashCard[] = [
   {
     title: "Programs",
-    description: "View programs and their batches",
+    description: "View and manage academic programs and their associated batches.",
     href: "/dashboard/programs",
     icon: BookOpen,
+    cta: "Explore Programs",
   },
   {
     title: "Batches",
-    description: "View batches and batch students",
+    description: "Monitor active batches, schedules, and enrolled students.",
     href: "/dashboard/batches",
     icon: Layers,
+    cta: "Manage Batches",
   },
   {
     title: "Students",
-    description: "Search students and open student files",
+    description: "Search student records, open files, and track enrolment status.",
     href: "/dashboard/students",
     icon: Users,
+    cta: "Access Students",
   },
   {
     title: "Intakes",
-    description: "View intake applications",
+    description: "Review intake applications and admission pipeline activity.",
     href: "/dashboard/intake",
     icon: ClipboardList,
+    cta: "Review Intakes",
   },
   {
     title: "Admin",
-    description: "Checklists, fees, and admin tools",
+    description: "System configuration, user management, and administrative tools.",
     href: "/dashboard/admin",
     icon: Settings,
+    cta: "Open Admin",
     adminOnly: true,
   },
 ];
 
-const secondaryCards: DashCard[] = [
-  {
-    title: "Documents",
-    description: "All student documents",
-    href: "/dashboard/documents",
-    icon: FileText,
-  },
+type SecondaryCard = {
+  title: string;
+  description: string;
+  href: string;
+  icon: typeof BookOpen;
+};
+
+const secondaryCards: SecondaryCard[] = [
   {
     title: "Fees",
-    description: "All fee schedules",
+    description: "Fee schedules and payment tracking.",
     href: "/dashboard/fees",
     icon: DollarSign,
   },
   {
     title: "Checklists",
-    description: "All admission checklists",
+    description: "Admission checklists and compliance status.",
     href: "/dashboard/checklists",
     icon: ClipboardCheck,
   },
   {
     title: "Contracts",
-    description: "All enrolment contracts",
+    description: "Enrolment contracts and agreement records.",
     href: "/dashboard/contracts",
     icon: ScrollText,
   },
@@ -89,7 +97,7 @@ export default async function DashboardPage() {
     : "Dashboard";
 
   const subtitle = profile
-    ? `Signed in as ${profile.role}`
+    ? `Signed in as ${profile.role.replace("_", " ")}`
     : "Welcome to the TAE Student Enrolment system";
 
   const role = profile?.role ?? null;
@@ -101,59 +109,74 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-zinc-900">{greeting}</h1>
-        <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
-      </div>
+      <section className="mb-10 border-l-4 border-tae-gold pl-8 py-2">
+        <h1 className="text-3xl font-semibold tracking-tight text-tae-navy">
+          {greeting}
+        </h1>
+        <p className="mt-2 text-sm text-tae-text-muted">{subtitle}</p>
+      </section>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-3">
         {visiblePrimary.map((card) => {
           const Icon = card.icon;
           return (
-            <a
+            <Link
               key={card.href}
               href={card.href}
-              className="group rounded-lg border border-zinc-200 bg-white p-6 transition-shadow hover:shadow-md"
+              className="group relative flex flex-col gap-5 overflow-hidden border border-tae-border/30 bg-white p-8 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[var(--shadow-premium-hover)]"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-md bg-zinc-100 text-zinc-700 group-hover:bg-zinc-200 transition-colors">
-                <Icon className="h-5 w-5" />
+              <div className="absolute -right-12 -top-12 h-24 w-24 rounded-bl-full bg-tae-navy/5 transition-colors group-hover:bg-tae-gold/10" />
+              <div className="flex h-14 w-14 items-center justify-center bg-tae-navy shadow-lg transition-colors duration-300 group-hover:bg-tae-gold">
+                <Icon className="h-7 w-7 text-white transition-colors group-hover:text-tae-navy" />
               </div>
-              <h2 className="text-sm font-semibold text-zinc-900">
-                {card.title}
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500">{card.description}</p>
-            </a>
-          );
-        })}
-      </div>
-
-      <div className="mt-10">
-        <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-zinc-400">
-          Module Views
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {secondaryCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <a
-                key={card.href}
-                href={card.href}
-                className="group rounded-lg border border-zinc-200 bg-white p-4 transition-shadow hover:shadow-md"
-              >
-                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-md bg-zinc-50 text-zinc-500 group-hover:bg-zinc-100 transition-colors">
-                  <Icon className="h-4 w-4" />
-                </div>
-                <h3 className="text-sm font-medium text-zinc-700">
+              <div>
+                <h2 className="text-lg font-semibold text-tae-navy">
                   {card.title}
-                </h3>
-                <p className="mt-0.5 text-xs text-zinc-400">
+                </h2>
+                <p className="mt-2 text-sm leading-relaxed text-tae-text-muted">
                   {card.description}
                 </p>
-              </a>
-            );
-          })}
-        </div>
+              </div>
+              <div className="mt-auto flex items-center gap-3 border-t border-tae-border/20 pt-4 text-xs font-bold uppercase tracking-widest text-tae-navy">
+                <span>{card.cta}</span>
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </div>
+            </Link>
+          );
+        })}
+      </section>
+
+      <div className="mt-12 mb-8 flex items-center gap-6 py-4">
+        <h3 className="text-xs font-bold uppercase tracking-[0.25em] text-tae-navy">
+          Extended Views
+        </h3>
+        <div className="h-px flex-1 bg-tae-border/40" />
       </div>
+
+      <section className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        {secondaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <Link
+              key={card.href}
+              href={card.href}
+              className="group border border-tae-border/30 bg-white p-8 shadow-sm transition-all duration-300 hover:border-tae-gold hover:shadow-[var(--shadow-premium)]"
+            >
+              <div className="mb-6">
+                <div className="inline-flex p-3 bg-tae-navy/5 transition-colors group-hover:bg-tae-gold">
+                  <Icon className="h-5 w-5 text-tae-navy transition-colors group-hover:text-white" />
+                </div>
+              </div>
+              <h3 className="text-base font-semibold text-tae-navy">
+                {card.title}
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-tae-text-muted">
+                {card.description}
+              </p>
+            </Link>
+          );
+        })}
+      </section>
     </div>
   );
 }

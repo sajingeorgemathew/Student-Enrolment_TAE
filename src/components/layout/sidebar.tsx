@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/auth/actions";
@@ -58,17 +59,31 @@ interface SidebarProps {
 export function Sidebar({ userEmail, userRole, userFullName }: SidebarProps) {
   const pathname = usePathname();
 
+  const initials = userFullName
+    ? userFullName
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : userEmail[0]?.toUpperCase() ?? "U";
+
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-zinc-200 bg-white">
-      <div className="border-b border-zinc-200 px-6 py-5">
-        <h2 className="text-lg font-semibold text-zinc-900">TAE Admin</h2>
-        <p className="text-xs text-zinc-500">
-          Toronto Academy of Education
-        </p>
+    <aside className="flex h-full w-72 flex-col bg-tae-navy">
+      <div className="px-8 pt-10 pb-8">
+        <Image
+          src="/Blue logo image.jpg"
+          alt="Toronto Academy of Education"
+          width={1024}
+          height={768}
+          className="h-auto w-full object-contain"
+          priority
+        />
+        <div className="mt-6 h-px w-12 bg-tae-gold/40" />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="space-y-1">
+      <nav className="sidebar-scroll flex-1 overflow-y-auto py-2">
+        <div className="mb-8">
           {primaryNav
             .filter((item) => isNavVisible(item, userRole))
             .map((item) => {
@@ -79,70 +94,83 @@ export function Sidebar({ userEmail, userRole, userFullName }: SidebarProps) {
               const Icon = item.icon;
 
               return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-zinc-100 text-zinc-900"
-                        : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-4 px-8 py-3.5 text-sm font-medium tracking-wide transition-all ${
+                    isActive
+                      ? "border-l-3 border-tae-gold bg-gradient-to-r from-tae-gold-dim to-transparent text-white"
+                      : "border-l-3 border-transparent text-white/50 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <Icon
+                    className={`h-5 w-5 shrink-0 ${
+                      isActive ? "text-tae-gold" : ""
                     }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </Link>
-                </li>
+                  />
+                  {item.label}
+                </Link>
               );
             })}
-        </ul>
+        </div>
 
-        <div className="mt-6 border-t border-zinc-100 pt-4">
-          <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Module Views
-          </p>
-          <ul className="space-y-1">
-            {secondaryNav.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              const Icon = item.icon;
+        <div className="px-8 mb-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/25">
+            Extended Views
+          </span>
+        </div>
+        <div>
+          {secondaryNav.map((item) => {
+            const isActive = pathname.startsWith(item.href);
+            const Icon = item.icon;
 
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-zinc-100 text-zinc-900"
-                        : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-4 px-8 py-3 text-sm transition-all ${
+                  isActive
+                    ? "border-l-3 border-tae-gold bg-gradient-to-r from-tae-gold-dim to-transparent text-white"
+                    : "border-l-3 border-transparent text-white/40 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${
+                    isActive ? "text-tae-gold" : ""
+                  }`}
+                />
+                {item.label}
+              </Link>
+            );
+          })}
         </div>
       </nav>
 
-      <div className="border-t border-zinc-200 px-4 py-4">
-        <div className="mb-3 px-2">
-          {userFullName && (
-            <p className="truncate text-sm font-medium text-zinc-900">
-              {userFullName}
-            </p>
-          )}
-          <p className="truncate text-xs text-zinc-500">{userEmail}</p>
-          {userRole && (
-            <p className="mt-0.5 text-xs text-zinc-400 capitalize">
-              {userRole}
-            </p>
-          )}
+      <div className="mt-auto p-8 bg-black/10">
+        <div className="mb-5 flex items-center gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center border border-tae-gold/30 bg-tae-gold/20 text-tae-gold font-bold text-sm">
+            {initials}
+          </div>
+          <div className="flex min-w-0 flex-col">
+            {userFullName && (
+              <span className="truncate text-sm font-semibold tracking-wide text-white">
+                {userFullName}
+              </span>
+            )}
+            <span className="truncate text-[11px] text-white/40">
+              {userEmail}
+            </span>
+            {userRole && (
+              <span className="mt-0.5 text-[11px] capitalize tracking-wider text-white/30">
+                {userRole.replace("_", " ")}
+              </span>
+            )}
+          </div>
         </div>
         <form action={logout}>
           <button
             type="submit"
-            className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
+            className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-tae-gold hover:text-white transition-colors"
           >
             <LogOut className="h-4 w-4" />
             Sign out
