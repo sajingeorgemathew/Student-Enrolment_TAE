@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getStudentById } from "@/features/students/actions";
-import { StudentEditForm } from "@/features/students/student-edit-form";
+import { StudentInfoSection } from "@/features/students/student-info-section";
 import { SalesIntakeForm } from "@/features/students/sales-intake-form";
 import { AdminApplicationForm } from "@/features/students/admin-application-form";
 import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
@@ -402,68 +402,33 @@ export default async function StudentDetailPage({
       )}
 
       <div className="space-y-6">
-        {/* 1. Student Summary */}
-        <Section title="Student Summary">
-          <FieldGrid>
-            <Field label="Student Number" value={student.student_number} />
-            <Field
-              label="Legal Full Name"
-              value={[
-                student.legal_first_name,
-                student.legal_middle_name,
-                student.legal_last_name,
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            />
-            <Field label="Preferred Name" value={student.preferred_name} />
-            <Field
-              label="Date of Birth"
-              value={
-                student.date_of_birth
-                  ? new Date(student.date_of_birth).toLocaleDateString("en-CA")
-                  : null
-              }
-            />
-            <Field label="Phone" value={student.phone} />
-            <Field label="Alternate Phone" value={student.alternate_phone} />
-            <Field label="Email" value={student.email} />
-            <Field
-              label="Address"
-              value={[
-                student.mailing_address_line_1,
-                student.mailing_address_line_2,
-                [student.city, student.province].filter(Boolean).join(", "),
-                student.postal_code,
-                student.country,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            />
-            <Field
-              label="Immigration Status"
-              value={student.immigration_status}
-            />
-            <Field
-              label="International Student"
-              value={
-                student.international_student === null
-                  ? null
-                  : student.international_student
-                    ? "Yes"
-                    : "No"
-              }
-            />
-            <Field label="Notes" value={student.notes} />
-          </FieldGrid>
+        {/* 1. Student Information - summary with edit toggle */}
+        <Section title="Student Information">
+          <StudentInfoSection
+            student={{
+              id: student.id,
+              student_number: student.student_number,
+              legal_first_name: student.legal_first_name,
+              legal_middle_name: student.legal_middle_name,
+              legal_last_name: student.legal_last_name,
+              preferred_name: student.preferred_name,
+              date_of_birth: student.date_of_birth,
+              phone: student.phone,
+              alternate_phone: student.alternate_phone,
+              email: student.email,
+              mailing_address_line_1: student.mailing_address_line_1,
+              mailing_address_line_2: student.mailing_address_line_2,
+              city: student.city,
+              province: student.province,
+              postal_code: student.postal_code,
+              country: student.country,
+              immigration_status: student.immigration_status,
+              international_student: student.international_student,
+              notes: student.notes,
+            }}
+            canEdit={isSalesOrAbove && !isStudentArchived}
+          />
         </Section>
-
-        {/* 2. Edit Student Information - sales and admin, hidden when archived */}
-        {isSalesOrAbove && !isStudentArchived && (
-          <Section title="Edit Student Information">
-            <StudentEditForm student={student} />
-          </Section>
-        )}
 
         {/* 3. Sales Intake - editable by sales, viewable by admin */}
         {isSalesOrAbove && latestApp && (

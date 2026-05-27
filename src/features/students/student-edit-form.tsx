@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { updateStudent } from "@/features/students/actions";
 import type { StudentFormState } from "@/features/students/actions";
 
@@ -28,12 +29,22 @@ interface StudentData {
 
 interface Props {
   student: StudentData;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 const initialState: StudentFormState = { success: false };
 
-export function StudentEditForm({ student }: Props) {
+export function StudentEditForm({ student, onSuccess, onCancel }: Props) {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState(updateStudent, initialState);
+
+  useEffect(() => {
+    if (state.success) {
+      onSuccess?.();
+      router.refresh();
+    }
+  }, [state, router, onSuccess]);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -42,12 +53,6 @@ export function StudentEditForm({ student }: Props) {
       {state.error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
           {state.error}
-        </div>
-      )}
-
-      {state.success && (
-        <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Student updated successfully.
         </div>
       )}
 
@@ -157,6 +162,16 @@ export function StudentEditForm({ student }: Props) {
       </div>
 
       <div className="flex items-center justify-end gap-3 border-t border-zinc-200 pt-5">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isPending}
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
         <button
           type="submit"
           disabled={isPending}
