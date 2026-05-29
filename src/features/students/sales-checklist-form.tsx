@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { saveSalesChecklist } from "@/features/students/hub-actions";
 import type { HubFormState } from "@/features/students/hub-actions";
 
@@ -19,7 +20,8 @@ interface SalesChecklist {
 interface Props {
   applicationId: string;
   checklist: SalesChecklist | null;
-  readOnly?: boolean;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 const checklistItems: { name: string; label: string }[] = [
@@ -39,58 +41,27 @@ const statusOptions = [
   { value: "not_applicable", label: "Not Applicable" },
 ];
 
-const statusColors: Record<string, string> = {
-  received: "bg-green-100 text-green-800",
-  not_received: "bg-red-100 text-red-800",
-  not_sure: "bg-amber-100 text-amber-800",
-  not_applicable: "bg-zinc-100 text-zinc-600",
-};
-
-const statusLabels: Record<string, string> = {
-  received: "Received",
-  not_received: "Not Received",
-  not_sure: "Not Sure",
-  not_applicable: "Not Applicable",
-};
-
 const initialState: HubFormState = { success: false };
 
-export function SalesChecklistForm({ applicationId, checklist, readOnly }: Props) {
-  const [state, formAction, isPending] = useActionState(
-    saveSalesChecklist,
-    initialState
+export function SalesChecklistForm({ applicationId, checklist, onSuccess, onCancel }: Props) {
+  const router = useRouter();
+
+  const wrappedAction = useCallback(
+    async (prev: HubFormState, formData: FormData) => {
+      const result = await saveSalesChecklist(prev, formData);
+      if (result.success) {
+        onSuccess?.();
+        router.refresh();
+      }
+      return result;
+    },
+    [onSuccess, router]
   );
 
-  if (readOnly) {
-    return (
-      <div className="space-y-3">
-        {checklistItems.map((item) => {
-          const value = checklist
-            ? (checklist as unknown as Record<string, string>)[item.name]
-            : "not_received";
-          return (
-            <div
-              key={item.name}
-              className="flex items-center justify-between rounded-md border border-zinc-100 px-4 py-2.5"
-            >
-              <span className="text-sm text-zinc-700">{item.label}</span>
-              <span
-                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[value] ?? "bg-zinc-100 text-zinc-600"}`}
-              >
-                {statusLabels[value] ?? value}
-              </span>
-            </div>
-          );
-        })}
-        {checklist?.notes && (
-          <div className="mt-2 rounded-md border border-zinc-100 px-4 py-2.5">
-            <span className="text-xs font-medium text-zinc-500">Notes</span>
-            <p className="mt-1 text-sm text-zinc-700">{checklist.notes}</p>
-          </div>
-        )}
-      </div>
-    );
-  }
+  const [state, formAction, isPending] = useActionState(
+    wrappedAction,
+    initialState
+  );
 
   return (
     <form action={formAction} className="space-y-3">
@@ -101,7 +72,7 @@ export function SalesChecklistForm({ applicationId, checklist, readOnly }: Props
           {state.error}
         </div>
       )}
-      {state.success && (
+      {state.success && !onSuccess && (
         <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Sales checklist saved.
         </div>
@@ -156,7 +127,17 @@ export function SalesChecklistForm({ applicationId, checklist, readOnly }: Props
         />
       </div>
 
-      <div className="flex items-center justify-end border-t border-zinc-200 pt-3">
+      <div className="flex items-center justify-end gap-3 border-t border-zinc-200 pt-3">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isPending}
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
         <button
           type="submit"
           disabled={isPending}
