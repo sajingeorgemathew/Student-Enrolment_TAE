@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   changeBatch,
@@ -35,6 +36,7 @@ export function BatchAssignmentControls({
   transferHistory,
   isAdmin,
 }: Props) {
+  const router = useRouter();
   const [activePanel, setActivePanel] = useState<
     "none" | "change" | "transfer"
   >("none");
@@ -44,6 +46,7 @@ export function BatchAssignmentControls({
       const result = await changeBatch(prev, formData);
       if (result.success) {
         setActivePanel("none");
+        router.refresh();
       }
       return result;
     },
@@ -55,6 +58,7 @@ export function BatchAssignmentControls({
       const result = await transferBatch(prev, formData);
       if (result.success) {
         setActivePanel("none");
+        router.refresh();
       }
       return result;
     },
