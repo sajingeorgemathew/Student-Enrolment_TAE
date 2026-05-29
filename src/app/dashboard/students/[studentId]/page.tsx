@@ -11,7 +11,7 @@ import { GenerateWordButton } from "@/features/contracts/generate-word-button";
 import { ContractGenerationHistory } from "@/features/contracts/contract-generation-history";
 import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
 import { InlineReviewStatus } from "@/features/documents/inline-review-status";
-import { FeeApprovalControls } from "@/features/fees/fee-approval-controls";
+import { FeeSection } from "@/features/fees/fee-section";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper, isSalesOrAdmin, isSuperAdmin } from "@/lib/roles";
 import { ArchiveControls } from "@/features/archive/archive-controls";
@@ -157,6 +157,10 @@ export default async function StudentDetailPage({
     total_hours: number | null;
     theory_hours: number | null;
     practicum_hours: number | null;
+    default_tuition: number | null;
+    default_book_fee: number | null;
+    default_compulsory_fee: number | null;
+    default_professional_exam_fee: number | null;
   } | null;
 
   const batch = latestApp?.batches as {
@@ -929,149 +933,86 @@ export default async function StudentDetailPage({
                 </span>
               )}
             </div>
-            {latestApp && isAdmin && !isStudentArchived && (
+            {latestApp && isAdmin && (
               <Link
                 href={`/dashboard/fees/${latestApp.id}`}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700 hover:text-zinc-900"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
-                {latestFeeSchedule ? "Edit Fees" : "Create Fee Schedule"}
+                Full View
               </Link>
             )}
           </div>
           <div className="px-6 py-5">
-            {!latestFeeSchedule ? (
-              <EmptyState message="No fee schedule created yet." />
+            {latestApp ? (
+              <FeeSection
+                key={(latestFeeSchedule?.updated_at as string) ?? (latestFeeSchedule?.id as string) ?? "new"}
+                applicationId={latestApp.id}
+                feeSchedule={
+                  latestFeeSchedule
+                    ? {
+                        id: latestFeeSchedule.id as string,
+                        tuition_fee: Number(latestFeeSchedule.tuition_fee) || 0,
+                        book_fee: Number(latestFeeSchedule.book_fee) || 0,
+                        compulsory_fee: Number(latestFeeSchedule.compulsory_fee) || 0,
+                        field_trip_fee: Number(latestFeeSchedule.field_trip_fee) || 0,
+                        uniform_equipment_fee: Number(latestFeeSchedule.uniform_equipment_fee) || 0,
+                        professional_exam_fee: Number(latestFeeSchedule.professional_exam_fee) || 0,
+                        expendable_supplies_fee: Number(latestFeeSchedule.expendable_supplies_fee) || 0,
+                        international_fee: Number(latestFeeSchedule.international_fee) || 0,
+                        optional_fee: Number(latestFeeSchedule.optional_fee) || 0,
+                        discount_amount: Number(latestFeeSchedule.discount_amount) || 0,
+                        total_fees: Number(latestFeeSchedule.total_fees) || 0,
+                        payment_before_signing: Number(latestFeeSchedule.payment_before_signing) || 0,
+                        payment_after_signing: Number(latestFeeSchedule.payment_after_signing) || 0,
+                        remaining_balance: Number(latestFeeSchedule.remaining_balance) || 0,
+                        number_of_installments: Number(latestFeeSchedule.number_of_installments) || 0,
+                        status: latestFeeSchedule.status as string,
+                        approved_by: (latestFeeSchedule.approved_by as string) ?? null,
+                        approved_at: (latestFeeSchedule.approved_at as string) ?? null,
+                        quote_id: (latestFeeSchedule.quote_id as string) ?? null,
+                      }
+                    : null
+                }
+                installments={feeInstallments.map((inst) => ({
+                  id: inst.id as string,
+                  installment_number: Number(inst.installment_number),
+                  due_date: (inst.due_date as string) ?? null,
+                  amount_due: Number(inst.amount_due),
+                  notes: (inst.notes as string) ?? null,
+                }))}
+                programDefaults={
+                  program
+                    ? {
+                        default_tuition: program.default_tuition,
+                        default_book_fee: program.default_book_fee,
+                        default_compulsory_fee: program.default_compulsory_fee,
+                        default_professional_exam_fee: program.default_professional_exam_fee,
+                      }
+                    : null
+                }
+                approvedByName={
+                  latestFeeSchedule?.approved_by
+                    ? ownerProfiles[latestFeeSchedule.approved_by as string] ?? null
+                    : null
+                }
+                canEdit={isAdmin && !isStudentArchived}
+                isAdmin={isAdmin}
+                isStudentArchived={isStudentArchived}
+                priceDiscussed={
+                  latestApp.price_discussed != null
+                    ? Number(latestApp.price_discussed)
+                    : null
+                }
+                depositDiscussed={
+                  latestApp.deposit_discussed != null
+                    ? Number(latestApp.deposit_discussed)
+                    : null
+                }
+                showSalesInfo={isSalesOrAbove}
+              />
             ) : (
-              <>
-                {isSalesOrAbove && latestApp && (
-                  <div className="mb-4">
-                    <div className="text-xs text-zinc-500">
-                      {latestApp.price_discussed != null && (
-                        <span className="mr-4">
-                          Price discussed: {formatCurrency(Number(latestApp.price_discussed))}
-                        </span>
-                      )}
-                      {latestApp.deposit_discussed != null && (
-                        <span>
-                          Deposit discussed: {formatCurrency(Number(latestApp.deposit_discussed))}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <FieldGrid>
-                  <Field
-                    label="Tuition Fee"
-                    value={formatCurrency(
-                      latestFeeSchedule.tuition_fee as number | null
-                    )}
-                  />
-                  <Field
-                    label="Total Fees"
-                    value={formatCurrency(
-                      latestFeeSchedule.total_fees as number | null
-                    )}
-                  />
-                  <Field
-                    label="Discount"
-                    value={formatCurrency(
-                      latestFeeSchedule.discount_amount as number | null
-                    )}
-                  />
-                  <Field
-                    label="Payment Before Signing"
-                    value={formatCurrency(
-                      latestFeeSchedule.payment_before_signing as number | null
-                    )}
-                  />
-                  <Field
-                    label="Payment After Signing"
-                    value={formatCurrency(
-                      latestFeeSchedule.payment_after_signing as number | null
-                    )}
-                  />
-                  <Field
-                    label="Remaining Balance"
-                    value={formatCurrency(
-                      latestFeeSchedule.remaining_balance as number | null
-                    )}
-                  />
-                  <Field
-                    label="Number of Installments"
-                    value={
-                      latestFeeSchedule.number_of_installments != null
-                        ? String(latestFeeSchedule.number_of_installments)
-                        : null
-                    }
-                  />
-                </FieldGrid>
-
-                {feeInstallments.length > 0 && (
-                  <div className="mt-4 border-t border-zinc-100 pt-4">
-                    <h3 className="mb-3 text-sm font-medium text-zinc-700">
-                      Payment Installments
-                    </h3>
-                    <div className="overflow-x-auto rounded-md border border-zinc-200">
-                      <table className="min-w-full divide-y divide-zinc-200">
-                        <thead className="bg-zinc-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                              No.
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                              Due Date
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                              Amount
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                              Notes
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-100">
-                          {feeInstallments.map((inst) => (
-                            <tr key={inst.id as string}>
-                              <td className="px-4 py-2 text-sm text-zinc-900">
-                                {inst.installment_number as number}
-                              </td>
-                              <td className="px-4 py-2 text-sm text-zinc-600">
-                                {inst.due_date
-                                  ? new Date(
-                                      inst.due_date as string
-                                    ).toLocaleDateString("en-CA")
-                                  : "--"}
-                              </td>
-                              <td className="px-4 py-2 text-sm text-zinc-900">
-                                {formatCurrency(inst.amount_due as number)}
-                              </td>
-                              <td className="px-4 py-2 text-sm text-zinc-500">
-                                {(inst.notes as string) || "--"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {latestApp && !isStudentArchived && (
-                  <FeeApprovalControls
-                    feeScheduleId={latestFeeSchedule.id as string}
-                    applicationId={latestApp.id}
-                    status={latestFeeSchedule.status as string}
-                    approvedBy={
-                      latestFeeSchedule.approved_by
-                        ? ownerProfiles[latestFeeSchedule.approved_by as string] ?? null
-                        : null
-                    }
-                    approvedAt={latestFeeSchedule.approved_at as string | null}
-                    isAdmin={isAdmin}
-                  />
-                )}
-              </>
+              <EmptyState message="No application found." />
             )}
           </div>
         </div>

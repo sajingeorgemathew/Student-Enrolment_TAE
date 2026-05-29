@@ -49,6 +49,8 @@ interface Props {
   feeSchedule: FeeSchedule | null;
   installments: Installment[];
   programDefaults: ProgramDefaults | null;
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 const initialState: FeeFormState = { success: false };
@@ -91,6 +93,8 @@ export function FeeCalculatorForm({
   feeSchedule,
   installments,
   programDefaults,
+  onSuccess,
+  onCancel,
 }: Props) {
   const [state, formAction, pending] = useActionState(
     saveFeeSchedule,
@@ -166,9 +170,10 @@ export function FeeCalculatorForm({
 
   useEffect(() => {
     if (state.success) {
+      onSuccess?.();
       router.refresh();
     }
-  }, [state.success, router]);
+  }, [state.success, router, onSuccess]);
 
   async function handleApprove() {
     if (!feeSchedule) return;
@@ -179,6 +184,7 @@ export function FeeCalculatorForm({
     if (!result.success) {
       setApproveError(result.error ?? "Approval failed.");
     } else {
+      onSuccess?.();
       router.refresh();
     }
   }
@@ -192,6 +198,7 @@ export function FeeCalculatorForm({
     if (!result.success) {
       setApproveError(result.error ?? "Could not reopen fee schedule.");
     } else {
+      onSuccess?.();
       router.refresh();
     }
   }
@@ -323,6 +330,18 @@ export function FeeCalculatorForm({
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {onCancel && (
+          <div className="flex justify-end border-t border-zinc-200 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Cancel
+            </button>
           </div>
         )}
       </div>
@@ -618,13 +637,25 @@ export function FeeCalculatorForm({
             </button>
           )}
         </div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="inline-flex items-center rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
-        >
-          {pending ? "Saving..." : "Save Draft"}
-        </button>
+        <div className="flex items-center gap-3">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={pending}
+              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={pending}
+            className="inline-flex items-center rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:outline-none disabled:opacity-50"
+          >
+            {pending ? "Saving..." : "Save Draft"}
+          </button>
+        </div>
       </div>
     </form>
   );
