@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   updateApplicationSales,
   getHubBatches,
@@ -36,11 +37,14 @@ interface Props {
   application: Application;
   programs: Program[];
   initialBatches: Batch[];
+  onSuccess?: () => void;
+  onCancel?: () => void;
 }
 
 const initialState: HubFormState = { success: false };
 
-export function SalesIntakeForm({ application, programs, initialBatches }: Props) {
+export function SalesIntakeForm({ application, programs, initialBatches, onSuccess, onCancel }: Props) {
+  const router = useRouter();
   const [state, formAction, isPending] = useActionState(
     updateApplicationSales,
     initialState
@@ -50,6 +54,13 @@ export function SalesIntakeForm({ application, programs, initialBatches }: Props
   );
   const [batches, setBatches] = useState<Batch[]>(initialBatches);
   const [loadingBatches, setLoadingBatches] = useState(false);
+
+  useEffect(() => {
+    if (state.success) {
+      onSuccess?.();
+      router.refresh();
+    }
+  }, [state, router, onSuccess]);
 
   function handleProgramChange(programId: string) {
     setSelectedProgram(programId);
@@ -78,7 +89,7 @@ export function SalesIntakeForm({ application, programs, initialBatches }: Props
             {state.error}
           </div>
         )}
-        {state.success && (
+        {state.success && !onSuccess && (
           <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
             Intake updated successfully.
           </div>
@@ -209,7 +220,17 @@ export function SalesIntakeForm({ application, programs, initialBatches }: Props
           />
         </div>
 
-        <div className="flex items-center justify-end border-t border-zinc-200 pt-4">
+        <div className="flex items-center justify-end gap-3 border-t border-zinc-200 pt-4">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isPending}
+              className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
           <button
             type="submit"
             disabled={isPending}

@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getStudentById } from "@/features/students/actions";
 import { StudentInfoSection } from "@/features/students/student-info-section";
-import { SalesIntakeForm } from "@/features/students/sales-intake-form";
-import { AdminApplicationForm } from "@/features/students/admin-application-form";
+import { SalesIntakeSection } from "@/features/students/sales-intake-section";
+import { AdminProgramSection } from "@/features/students/admin-program-section";
 import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
 import { ChecklistForm } from "@/features/checklists/checklist-form";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
@@ -473,56 +473,28 @@ export default async function StudentDetailPage({
               )}
             </FieldGrid>
             <div className="mt-5 border-t border-zinc-100 pt-5">
-              {role === "sales" && !isStudentArchived ? (
-                <SalesIntakeForm
-                  application={{
-                    id: latestApp.id,
-                    status: latestApp.status,
-                    lead_source: latestApp.lead_source,
-                    program_id: latestApp.program_id,
-                    batch_id: latestApp.batch_id,
-                    price_discussed: latestApp.price_discussed
-                      ? Number(latestApp.price_discussed)
-                      : null,
-                    deposit_discussed: latestApp.deposit_discussed
-                      ? Number(latestApp.deposit_discussed)
-                      : null,
-                    sales_notes: latestApp.sales_notes,
-                    student_id: student.id,
-                  }}
-                  programs={programs}
-                  initialBatches={batchesForProgram}
-                />
-              ) : (
-                <FieldGrid>
-                  <Field label="Lead Source" value={latestApp.lead_source} />
-                  <Field
-                    label="Program Interest"
-                    value={program?.program_name ?? null}
-                  />
-                  <Field
-                    label="Batch Interest"
-                    value={batch?.batch_name ?? null}
-                  />
-                  <Field
-                    label="Price Discussed"
-                    value={
-                      latestApp.price_discussed != null
-                        ? formatCurrency(Number(latestApp.price_discussed))
-                        : null
-                    }
-                  />
-                  <Field
-                    label="Deposit Discussed"
-                    value={
-                      latestApp.deposit_discussed != null
-                        ? formatCurrency(Number(latestApp.deposit_discussed))
-                        : null
-                    }
-                  />
-                  <Field label="Sales Notes" value={latestApp.sales_notes} />
-                </FieldGrid>
-              )}
+              <SalesIntakeSection
+                application={{
+                  id: latestApp.id,
+                  status: latestApp.status,
+                  lead_source: latestApp.lead_source,
+                  program_id: latestApp.program_id,
+                  batch_id: latestApp.batch_id,
+                  price_discussed: latestApp.price_discussed
+                    ? Number(latestApp.price_discussed)
+                    : null,
+                  deposit_discussed: latestApp.deposit_discussed
+                    ? Number(latestApp.deposit_discussed)
+                    : null,
+                  sales_notes: latestApp.sales_notes,
+                  student_id: student.id,
+                }}
+                programs={programs}
+                initialBatches={batchesForProgram}
+                programName={program?.program_name ?? null}
+                batchName={batch?.batch_name ?? null}
+                canEdit={role === "sales" && !isStudentArchived && (latestApp.status === "new_intake" || latestApp.status === "information_needed")}
+              />
             </div>
           </Section>
         )}
@@ -654,7 +626,7 @@ export default async function StudentDetailPage({
         {/* 5b. Admin Program and Batch Assignment - hidden when archived */}
         {isAdmin && latestApp && !isStudentArchived && (
           <Section title="Admin - Program and Batch Assignment">
-            <AdminApplicationForm
+            <AdminProgramSection
               application={{
                 id: latestApp.id,
                 program_id: latestApp.program_id,
@@ -662,6 +634,9 @@ export default async function StudentDetailPage({
               }}
               programs={programs}
               initialBatches={batchesForProgram}
+              programName={program?.program_name ?? null}
+              batchName={batch?.batch_name ?? null}
+              canEdit={true}
             />
           </Section>
         )}
