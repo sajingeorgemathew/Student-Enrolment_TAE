@@ -118,7 +118,8 @@ export async function getStudentById(studentId: string) {
       *,
       programs (
         id, program_code, program_name, credential_name,
-        total_hours, theory_hours, practicum_hours
+        total_hours, theory_hours, practicum_hours,
+        default_tuition, default_book_fee, default_compulsory_fee, default_professional_exam_fee
       ),
       batches (
         id, batch_name, batch_code, start_date, expected_end_date,
