@@ -5,8 +5,8 @@ import { getStudentById } from "@/features/students/actions";
 import { StudentInfoSection } from "@/features/students/student-info-section";
 import { SalesIntakeSection } from "@/features/students/sales-intake-section";
 import { AdminProgramSection } from "@/features/students/admin-program-section";
-import { SalesChecklistForm } from "@/features/students/sales-checklist-form";
-import { ChecklistForm } from "@/features/checklists/checklist-form";
+import { SalesChecklistSection } from "@/features/students/sales-checklist-section";
+import { OfficialChecklistSection } from "@/features/checklists/official-checklist-section";
 import { GenerateWordButton } from "@/features/contracts/generate-word-button";
 import { ContractGenerationHistory } from "@/features/contracts/contract-generation-history";
 import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
@@ -41,16 +41,6 @@ const statusColors: Record<string, string> = {
   signature_pending: "bg-indigo-100 text-indigo-800",
   signed: "bg-emerald-100 text-emerald-800",
   archived: "bg-zinc-100 text-zinc-600",
-};
-
-const checklistStatusLabels: Record<string, string> = {
-  not_received: "Not Received",
-  uploaded: "Uploaded",
-  accepted: "Accepted",
-  needs_correction: "Needs Correction",
-  not_started: "Not Started",
-  in_review: "In Review",
-  not_applicable: "Not Applicable",
 };
 
 const documentStatusLabels: Record<string, string> = {
@@ -589,11 +579,11 @@ export default async function StudentDetailPage({
                 </div>
               )
             )}
-            <SalesChecklistForm
+            <SalesChecklistSection
               key={latestSalesChecklist?.updated_at ?? "new"}
               applicationId={latestApp.id}
               checklist={latestSalesChecklist ?? null}
-              readOnly={isViewer || isStudentArchived}
+              canEdit={isSalesOrAbove && !isViewer && !isStudentArchived}
             />
           </Section>
         )}
@@ -891,109 +881,33 @@ export default async function StudentDetailPage({
                     </div>
                   )
                 )}
-                {isAdmin && !isStudentArchived ? (
-                  <>
-                    <p className="mb-4 text-xs text-zinc-400">
-                      This is the official admin checklist. Sales cannot edit this section.
-                    </p>
-                    <ChecklistForm
-                      key={(latestChecklist?.admin_verified_at as string | undefined) ?? "new"}
-                      applicationId={latestApp.id}
-                      checklist={
-                        latestChecklist
-                          ? {
-                              id: latestChecklist.id as string,
-                              application_id: latestChecklist.application_id as string,
-                              photo_id_status: latestChecklist.photo_id_status as string | null,
-                              address_proof_status: latestChecklist.address_proof_status as string | null,
-                              academic_route: latestChecklist.academic_route as string | null,
-                              academic_status: latestChecklist.academic_status as string | null,
-                              academic_notes: latestChecklist.academic_notes as string | null,
-                              english_route: latestChecklist.english_route as string | null,
-                              english_status: latestChecklist.english_status as string | null,
-                              english_score: latestChecklist.english_score as string | null,
-                              english_notes: latestChecklist.english_notes as string | null,
-                              admin_verified_by: latestChecklist.admin_verified_by as string | null,
-                              admin_verified_at: latestChecklist.admin_verified_at as string | null,
-                            }
-                          : null
-                      }
-                    />
-                  </>
-                ) : !latestChecklist ? (
-                  <EmptyState message="No admission checklist created yet." />
-                ) : (
-                  <FieldGrid>
-                    <Field
-                      label="Photo ID"
-                      value={
-                        checklistStatusLabels[
-                          latestChecklist.photo_id_status as string
-                        ] ?? (latestChecklist.photo_id_status as string)
-                      }
-                    />
-                    <Field
-                      label="Address Proof"
-                      value={
-                        checklistStatusLabels[
-                          latestChecklist.address_proof_status as string
-                        ] ?? (latestChecklist.address_proof_status as string)
-                      }
-                    />
-                    <Field
-                      label="Academic Route"
-                      value={
-                        (latestChecklist.academic_route as string)?.replace(
-                          /_/g,
-                          " "
-                        ) ?? null
-                      }
-                    />
-                    <Field
-                      label="Academic Status"
-                      value={
-                        checklistStatusLabels[
-                          latestChecklist.academic_status as string
-                        ] ?? (latestChecklist.academic_status as string)
-                      }
-                    />
-                    <Field
-                      label="English Route"
-                      value={
-                        (latestChecklist.english_route as string)?.replace(
-                          /_/g,
-                          " "
-                        ) ?? null
-                      }
-                    />
-                    <Field
-                      label="English Status"
-                      value={
-                        checklistStatusLabels[
-                          latestChecklist.english_status as string
-                        ] ?? (latestChecklist.english_status as string)
-                      }
-                    />
-                    <Field
-                      label="English Score"
-                      value={latestChecklist.english_score as string | null}
-                    />
-                    {((latestChecklist.academic_notes as string) ||
-                      (latestChecklist.english_notes as string)) && (
-                      <Field
-                        label="Notes"
-                        value={
-                          [
-                            latestChecklist.academic_notes as string | null,
-                            latestChecklist.english_notes as string | null,
-                          ]
-                            .filter(Boolean)
-                            .join(" | ") || null
+                <p className="mb-4 text-xs text-zinc-400">
+                  This is the official admin checklist. Sales cannot edit this section.
+                </p>
+                <OfficialChecklistSection
+                  key={(latestChecklist?.admin_verified_at as string | undefined) ?? "new"}
+                  applicationId={latestApp.id}
+                  checklist={
+                    latestChecklist
+                      ? {
+                          id: latestChecklist.id as string,
+                          application_id: latestChecklist.application_id as string,
+                          photo_id_status: latestChecklist.photo_id_status as string | null,
+                          address_proof_status: latestChecklist.address_proof_status as string | null,
+                          academic_route: latestChecklist.academic_route as string | null,
+                          academic_status: latestChecklist.academic_status as string | null,
+                          academic_notes: latestChecklist.academic_notes as string | null,
+                          english_route: latestChecklist.english_route as string | null,
+                          english_status: latestChecklist.english_status as string | null,
+                          english_score: latestChecklist.english_score as string | null,
+                          english_notes: latestChecklist.english_notes as string | null,
+                          admin_verified_by: latestChecklist.admin_verified_by as string | null,
+                          admin_verified_at: latestChecklist.admin_verified_at as string | null,
                         }
-                      />
-                    )}
-                  </FieldGrid>
-                )}
+                      : null
+                  }
+                  canEdit={isAdmin && !isStudentArchived}
+                />
               </>
             )}
           </div>
