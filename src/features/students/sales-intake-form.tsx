@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useEffect } from "react";
+import { useActionState, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   updateApplicationSales,
@@ -45,8 +45,21 @@ const initialState: HubFormState = { success: false };
 
 export function SalesIntakeForm({ application, programs, initialBatches, onSuccess, onCancel }: Props) {
   const router = useRouter();
+
+  const wrappedAction = useCallback(
+    async (prev: HubFormState, formData: FormData) => {
+      const result = await updateApplicationSales(prev, formData);
+      if (result.success) {
+        onSuccess?.();
+        router.refresh();
+      }
+      return result;
+    },
+    [onSuccess, router]
+  );
+
   const [state, formAction, isPending] = useActionState(
-    updateApplicationSales,
+    wrappedAction,
     initialState
   );
   const [selectedProgram, setSelectedProgram] = useState(
@@ -54,13 +67,6 @@ export function SalesIntakeForm({ application, programs, initialBatches, onSucce
   );
   const [batches, setBatches] = useState<Batch[]>(initialBatches);
   const [loadingBatches, setLoadingBatches] = useState(false);
-
-  useEffect(() => {
-    if (state.success) {
-      onSuccess?.();
-      router.refresh();
-    }
-  }, [state, router, onSuccess]);
 
   function handleProgramChange(programId: string) {
     setSelectedProgram(programId);
