@@ -15,6 +15,7 @@ import {
   ScrollText,
   LogOut,
   Settings,
+  Wrench,
 } from "lucide-react";
 
 type NavItem = {
@@ -31,6 +32,12 @@ const primaryNav: NavItem[] = [
   { label: "Students", href: "/dashboard/students", icon: Users },
   { label: "Intakes", href: "/dashboard/intake", icon: ClipboardList },
   { label: "Admin", href: "/dashboard/admin", icon: Settings, minRole: "admin" },
+  {
+    label: "Admin Tools",
+    href: "/dashboard/admin-tools",
+    icon: Wrench,
+    minRole: "admin",
+  },
 ];
 
 const secondaryNav: NavItem[] = [
