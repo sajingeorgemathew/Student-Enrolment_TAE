@@ -1060,7 +1060,8 @@ export default async function StudentDetailPage({
               ) : allReady ? (
                 <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3">
                   <p className="text-sm font-medium text-green-800">
-                    All items are complete. Mark as ready for contract in the workflow review above.
+                    All items are complete. An admin can mark this ready for
+                    contract from admin review in the workflow review above.
                   </p>
                 </div>
               ) : (

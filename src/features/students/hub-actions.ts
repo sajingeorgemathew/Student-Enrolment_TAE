@@ -337,6 +337,80 @@ export async function markReadyForContract(
   return { success: true };
 }
 
+const REOPENABLE_STATUSES = [
+  "ready_for_contract",
+  "contract_generated",
+  "signature_pending",
+];
+
+export async function reopenToAdminReview(
+  applicationId: string,
+  reason: string
+): Promise<WorkflowActionResult> {
+  const profile = await getUserProfile();
+  if (!profile) return { success: false, error: "You must be logged in." };
+  if (!isAdminOrSuper(profile.role)) {
+    return {
+      success: false,
+      error: "Only admin users can reopen an application.",
+    };
+  }
+
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    return {
+      success: false,
+      error: "A reason is required to reopen the application.",
+    };
+  }
+
+  const supabase = await createClient();
+
+  const { data: app } = await supabase
+    .from("applications")
+    .select("id, status, student_id, admin_notes")
+    .eq("id", applicationId)
+    .single();
+
+  if (!app) return { success: false, error: "Application not found." };
+
+  if (!REOPENABLE_STATUSES.includes(app.status)) {
+    return {
+      success: false,
+      error:
+        "Reopen is only allowed from Ready for Contract, Contract Generated, or Signature Pending status.",
+    };
+  }
+
+  // Preserve existing admin notes and timestamps. We only change the workflow
+  // status and append the reopen reason. Contract records, documents, fees,
+  // and checklists are intentionally left untouched.
+  const existingNotes = (app.admin_notes as string | null)?.trim();
+  const stamp = new Date().toISOString().slice(0, 10);
+  const reopenNote = `[Reopened ${stamp}] ${trimmedReason}`;
+  const mergedNotes = existingNotes
+    ? `${existingNotes}\n${reopenNote}`
+    : reopenNote;
+
+  const { error } = await supabase
+    .from("applications")
+    .update({
+      status: "admin_review",
+      admin_notes: mergedNotes,
+      admin_owner: profile.id,
+    })
+    .eq("id", applicationId);
+
+  if (error) return { success: false, error: "Could not reopen application." };
+
+  revalidatePath(`/dashboard/students/${app.student_id}`);
+  revalidatePath("/dashboard/intake");
+  revalidatePath("/dashboard/contracts");
+  revalidatePath("/dashboard/checklists");
+  revalidatePath("/dashboard/fees");
+  return { success: true };
+}
+
 export async function saveSalesChecklist(
   _prev: HubFormState,
   formData: FormData

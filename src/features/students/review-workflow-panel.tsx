@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Send } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Send, RotateCcw } from "lucide-react";
 import { submitToAdminReview } from "@/features/intake/actions";
 import {
   saveAdminNotes,
   markInformationNeeded,
   markReadyForContract,
+  reopenToAdminReview,
 } from "@/features/students/hub-actions";
 import type { WorkflowActionResult } from "@/features/students/hub-actions";
 
@@ -95,6 +97,7 @@ export function ReviewWorkflowPanel({
   role,
   readOnly = false,
 }: Props) {
+  const router = useRouter();
   const isAdmin = role === "admin" || role === "super_admin";
   const isSales = role === "sales";
   const isViewer = role === "viewer";
@@ -114,6 +117,20 @@ export function ReviewWorkflowPanel({
 
   const canMarkInfoNeeded = !readOnly && isAdmin && status === "admin_review";
   const canMarkReady = !readOnly && isAdmin && status === "admin_review";
+  const canReopen =
+    !readOnly &&
+    isAdmin &&
+    (status === "ready_for_contract" ||
+      status === "contract_generated" ||
+      status === "signature_pending");
+
+  // Sales can only act in the intake stages. In every later stage their view is
+  // locked, so explain why instead of leaving the panel empty.
+  const salesLocked =
+    isSales &&
+    !readOnly &&
+    status !== "new_intake" &&
+    status !== "information_needed";
 
   function clearMessages() {
     setActionError(null);
@@ -127,6 +144,7 @@ export function ReviewWorkflowPanel({
       const result = await submitToAdminReview(applicationId);
       if (result.success) {
         setActionSuccess("Sent to admin review.");
+        router.refresh();
       } else {
         setActionError(result.error ?? "Something went wrong.");
       }
@@ -139,6 +157,7 @@ export function ReviewWorkflowPanel({
       const result = await saveAdminNotes(applicationId, notes);
       if (result.success) {
         setActionSuccess("Notes saved.");
+        router.refresh();
       } else {
         setActionError(result.error ?? "Could not save notes.");
       }
@@ -151,6 +170,7 @@ export function ReviewWorkflowPanel({
       const result = await markInformationNeeded(applicationId, notes);
       if (result.success) {
         setActionSuccess("Marked as information needed.");
+        router.refresh();
       } else {
         setActionError(result.error ?? "Could not update status.");
       }
@@ -164,6 +184,7 @@ export function ReviewWorkflowPanel({
         await markReadyForContract(applicationId);
       if (result.success) {
         setActionSuccess("Marked as ready for contract.");
+        router.refresh();
       } else if (result.missingItems && result.missingItems.length > 0) {
         setMissingItems(result.missingItems);
         setActionError(
@@ -171,6 +192,25 @@ export function ReviewWorkflowPanel({
         );
       } else {
         setActionError(result.error ?? "Could not update status.");
+      }
+    });
+  }
+
+  function handleReopen() {
+    clearMessages();
+    if (!notes.trim()) {
+      setActionError(
+        "Add a reason in Admin Notes before reopening to admin review."
+      );
+      return;
+    }
+    startTransition(async () => {
+      const result = await reopenToAdminReview(applicationId, notes);
+      if (result.success) {
+        setActionSuccess("Reopened to admin review.");
+        router.refresh();
+      } else {
+        setActionError(result.error ?? "Could not reopen application.");
       }
     });
   }
@@ -337,45 +377,89 @@ export function ReviewWorkflowPanel({
         </div>
       )}
 
-      {!isViewer && (canSendToReview || canMarkInfoNeeded || canMarkReady) && (
-        <div className="border-t border-zinc-200 pt-4">
-          <div className="flex flex-wrap items-center gap-3">
-            {canSendToReview && (
-              <button
-                type="button"
-                onClick={handleSendToReview}
-                disabled={isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-              >
-                <Send className="h-3 w-3" />
-                {isPending ? "Sending..." : "Send to Admin Review"}
-              </button>
-            )}
-
-            {canMarkInfoNeeded && (
-              <button
-                type="button"
-                onClick={handleMarkInfoNeeded}
-                disabled={isPending}
-                className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-500 disabled:opacity-50"
-              >
-                {isPending ? "Updating..." : "Mark Information Needed"}
-              </button>
-            )}
-
-            {canMarkReady && (
-              <button
-                type="button"
-                onClick={handleMarkReady}
-                disabled={isPending}
-                className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
-              >
-                {isPending ? "Checking..." : "Mark Ready for Contract"}
-              </button>
-            )}
+      {salesLocked && (
+        <div className="border-t border-zinc-100 pt-4">
+          <div className="rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3">
+            <p className="text-sm text-zinc-600">
+              This application has moved past intake and is now read-only for
+              sales. An admin can request more information if changes are
+              needed.
+            </p>
           </div>
         </div>
       )}
+
+      {isViewer && (
+        <div className="border-t border-zinc-100 pt-4">
+          <p className="text-sm text-zinc-500">
+            You have read-only access to this application.
+          </p>
+        </div>
+      )}
+
+      {!isViewer &&
+        (canSendToReview ||
+          canMarkInfoNeeded ||
+          canMarkReady ||
+          canReopen) && (
+          <div className="border-t border-zinc-200 pt-4">
+            <div className="flex flex-wrap items-center gap-3">
+              {canSendToReview && (
+                <button
+                  type="button"
+                  onClick={handleSendToReview}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-zinc-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
+                >
+                  <Send className="h-3 w-3" />
+                  {isPending ? "Sending..." : "Send to Admin Review"}
+                </button>
+              )}
+
+              {canMarkInfoNeeded && (
+                <button
+                  type="button"
+                  onClick={handleMarkInfoNeeded}
+                  disabled={isPending}
+                  className="rounded-md bg-orange-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-500 disabled:opacity-50"
+                >
+                  {isPending ? "Updating..." : "Mark Information Needed"}
+                </button>
+              )}
+
+              {canMarkReady && (
+                <button
+                  type="button"
+                  onClick={handleMarkReady}
+                  disabled={isPending}
+                  className="rounded-md bg-green-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-600 disabled:opacity-50"
+                >
+                  {isPending ? "Checking..." : "Mark Ready for Contract"}
+                </button>
+              )}
+
+              {canReopen && (
+                <button
+                  type="button"
+                  onClick={handleReopen}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                  {isPending ? "Reopening..." : "Reopen to Admin Review"}
+                </button>
+              )}
+            </div>
+            {canReopen && (
+              <p className="mt-2 text-xs text-zinc-400">
+                Reopening returns this application to admin review for
+                corrections. Generated contracts, documents, fees, and
+                checklists are preserved. Add a reason in Admin Notes above
+                before reopening.
+              </p>
+            )}
+          </div>
+        )}
     </div>
   );
 }
