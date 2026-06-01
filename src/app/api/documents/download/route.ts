@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getUserProfile } from "@/lib/profile";
+import { isAdminOrSuper } from "@/lib/roles";
 
 export async function GET(request: NextRequest) {
   const profile = await getUserProfile();
@@ -15,6 +16,14 @@ export async function GET(request: NextRequest) {
 
   if (!bucket || !path || !fileName) {
     return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+  }
+
+  const isContractFile = path.includes("/contracts/");
+  if (isContractFile && !isAdminOrSuper(profile.role)) {
+    return NextResponse.json(
+      { error: "Only admin users can download generated contracts." },
+      { status: 403 },
+    );
   }
 
   const supabase = await createClient();
