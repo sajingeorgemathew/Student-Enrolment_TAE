@@ -15,8 +15,10 @@ function downloadUrl(storagePath: string, fileName: string): string {
 
 export function ContractGenerationHistory({
   generations,
+  canDownload = false,
 }: {
   generations: ContractGenerationRecord[];
+  canDownload?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
 
@@ -53,7 +55,7 @@ export function ContractGenerationHistory({
                 : ""}
             </p>
           </div>
-          {latest.storage_path && (
+          {latest.storage_path && canDownload && (
             <a
               href={downloadUrl(latest.storage_path, latest.file_name)}
               className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
@@ -108,7 +110,7 @@ export function ContractGenerationHistory({
                         : ""}
                     </p>
                   </div>
-                  {record.storage_path && (
+                  {record.storage_path && canDownload && (
                     <a
                       href={downloadUrl(record.storage_path, record.file_name)}
                       className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"

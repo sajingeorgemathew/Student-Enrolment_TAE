@@ -1171,7 +1171,7 @@ export default async function StudentDetailPage({
                 <h3 className="mb-3 text-sm font-medium text-zinc-700">
                   Generation History
                 </h3>
-                <ContractGenerationHistory generations={contractGenerations} />
+                <ContractGenerationHistory generations={contractGenerations} canDownload={isAdmin} />
               </div>
             )}
 
