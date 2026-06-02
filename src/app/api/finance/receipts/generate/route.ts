@@ -9,8 +9,10 @@ import {
   isCardPaymentMethod,
   type ReceiptNotesType,
   type ReceiptPaymentMethod,
-  type ReceiptSignatureVariant,
+  type ReceiptSignatureImage,
+  type ReceiptSignatureMimeType,
 } from "@/lib/receipts/receipt-types";
+import { SIGNATURE_STORAGE_BUCKET } from "@/lib/signatures/signature-constants";
 
 // FINANCE-06: admin-only single receipt generation.
 // FINANCE-07: permanent storage and re-download.
@@ -130,8 +132,13 @@ export async function POST(request: NextRequest) {
     return bad("Select a valid notes type.");
   }
 
-  const signatureVariant: ReceiptSignatureVariant =
-    body.signatureVariant === "B" ? "B" : "A";
+  // FINANCE-08: optional selected signature. When provided it must be the id of
+  // an active admin signature; the image is read from the private
+  // admin-signatures bucket and overlaid on the PDF.
+  const signatureId =
+    typeof body.signatureId === "string" && body.signatureId.trim() !== ""
+      ? body.signatureId.trim()
+      : null;
 
   // card_type is stored only for card-based methods. The payment method itself
   // already encodes the card brand, so card_type mirrors it for record-keeping.
@@ -156,6 +163,76 @@ export async function POST(request: NextRequest) {
   }
 
   const appContext = await resolveApplicationContext(supabase, studentId);
+
+  // Resolve the selected signature, if any. It must reference an active admin
+  // signature; the image is read from the private admin-signatures bucket and
+  // passed to the generator as bytes. Receipt generation without a signature is
+  // allowed (the field is optional), so a null signatureId simply skips this.
+  let signatureImage: ReceiptSignatureImage | undefined;
+  if (signatureId) {
+    const { data: signature, error: signatureError } = await supabase
+      .from("admin_signatures")
+      .select("id, storage_path, mime_type, is_active")
+      .eq("id", signatureId)
+      .single();
+
+    if (signatureError) {
+      if (
+        signatureError.code === "42P01" ||
+        /admin_signatures/i.test(signatureError.message ?? "")
+      ) {
+        return bad(
+          "Signature records are not available in this environment yet. Generate the receipt without a signature, or apply the admin signature migration first.",
+          503
+        );
+      }
+      if (signatureError.code === "PGRST116") {
+        return bad("The selected signature could not be found.", 404);
+      }
+      console.error("Signature lookup failed:", signatureError.message);
+      return bad("Could not load the selected signature.", 500);
+    }
+    if (!signature) {
+      return bad("The selected signature could not be found.", 404);
+    }
+    if (!signature.is_active) {
+      return bad(
+        "The selected signature is not active. Choose an active signature or generate the receipt without one."
+      );
+    }
+
+    // pdf-lib can embed PNG and JPEG only. WebP is an allowed signature upload
+    // type but cannot be overlaid on the PDF, so block it with a clear message
+    // rather than failing later in the generator.
+    if (
+      signature.mime_type !== "image/png" &&
+      signature.mime_type !== "image/jpeg"
+    ) {
+      return bad(
+        `The selected signature is a ${signature.mime_type} image, which cannot be overlaid on a receipt. Use a PNG or JPEG signature.`
+      );
+    }
+
+    const { data: file, error: downloadError } = await supabase.storage
+      .from(SIGNATURE_STORAGE_BUCKET)
+      .download(signature.storage_path);
+
+    if (downloadError || !file) {
+      console.error(
+        "Signature download failed:",
+        downloadError?.message ?? "no file"
+      );
+      return bad(
+        "The selected signature image file is missing or could not be read. No receipt was generated.",
+        502
+      );
+    }
+
+    signatureImage = {
+      bytes: new Uint8Array(await file.arrayBuffer()),
+      mimeType: signature.mime_type as ReceiptSignatureMimeType,
+    };
+  }
 
   // Resolve the sequence: use the admin override if provided and valid,
   // otherwise compute the next available sequence (max + 1).
@@ -210,6 +287,10 @@ export async function POST(request: NextRequest) {
       payment_method: paymentMethod,
       card_type: cardType,
       notes_type: notesType,
+      // signature_id is only sent when a signature was selected, so receipt
+      // generation without a signature still works in environments where the
+      // FINANCE-08 migration has not been applied yet.
+      ...(signatureId ? { signature_id: signatureId } : {}),
       pdf_storage_path: null,
       generated_by: profile.id,
       generated_at: now,
@@ -234,6 +315,15 @@ export async function POST(request: NextRequest) {
         );
       }
       return bad("This receipt would duplicate an existing record.", 409);
+    }
+    if (
+      insertError.code === "42703" ||
+      /signature_id/i.test(insertError.message ?? "")
+    ) {
+      return bad(
+        "Saving the selected signature requires the FINANCE-08 migration. Apply it, or generate the receipt without a signature.",
+        503
+      );
     }
     if (
       insertError.code === "42P01" ||
@@ -262,7 +352,7 @@ export async function POST(request: NextRequest) {
       paymentDate,
       paymentMethod,
       notesType,
-      signatureVariant,
+      signatureImage,
     });
   } catch (err) {
     console.error("Receipt PDF generation failed:", err);

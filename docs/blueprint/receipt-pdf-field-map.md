@@ -145,7 +145,7 @@ redrawn.
 | `cash_checkbox` | `payment_method = cash` | 106 | 235 | X 11 | Cash box (option 5); checked only for cash |
 | `card_holder_name` | `student_name_snapshot` | 166 | 327 | 10 | Card payments only, blank otherwise (see section 5) |
 | `notes` | `notes_type` mapped to text | 66 | 219 | 10 | Value only, e.g. `Enrolment fee`; `Notes:` is preprinted |
-| `signature_image` | fixed approved image | 380 | 110 | image | Not yet implemented (see section 9) |
+| `signature_image` | selected admin signature | 60 | 164 | image | Implemented in FINANCE-08; sits above the LEFT signature line, inside the left signature block. Lower-left anchor of a 120x45 pt box, image scaled to fit preserving aspect ratio (see section 9) |
 | `bottom_date` | `receipt_date` | 428 | 161 | 10 | Only the date `DD-MM-YYYY`; the `Date:` label is preprinted |
 
 Note: the template's option 1 line ("1. Debit/Credit Card type (Monnex):") has
@@ -272,24 +272,35 @@ Rules:
 
 ## 9. Signature Image Placement Rule
 
-- Status (FINANCE-06-FIX): not yet implemented. The generator leaves a
-  documented `TODO(FINANCE-07)` and never prints a typed signer name. The
-  signature line stays blank on generated receipts. Signature image rendering
-  and upload management are out of scope for this ticket.
-- Use a signature image only. Do not print a typed signer name anywhere on the
-  receipt.
-- Approved signature images (from the blueprint):
-  - Signature A:
-    `https://res.cloudinary.com/dfxihtsvj/image/upload/v1780005334/Screenshot_2025-04-05_144725_fbqubx.png`
-  - Signature B:
-    `https://res.cloudinary.com/dfxihtsvj/image/upload/v1780054291/signature_sgm__4_-removebg-preview_fttasu.png`
-- Placement: fixed overlay box in the signature footer area, approximately
-  lower-left anchor `x = 380`, `y = 110` (to be calibrated).
-- Recommended image box: about 120 pt wide by 45 pt tall, preserving aspect
-  ratio. Scale the embedded PNG to fit this box.
-- The signature must overlay at a fixed position and must not push, shift, or
-  reflow any other content. It is drawn on top of the existing template, not
-  inserted into a flowing layout.
+- Status (FINANCE-08): implemented. The generator now accepts an optional
+  signature image (`ReceiptPdfInput.signatureImage`: raw bytes plus mime type)
+  and embeds it. A typed signer name is never printed. When no signature is
+  supplied the signature line stays blank.
+- Signature source: the admin selects an active signature from
+  `public.admin_signatures` in the new receipt form. The generation route reads
+  the image from the private `admin-signatures` bucket and passes the bytes to
+  the generator. The approved Cloudinary URLs from the original blueprint are no
+  longer used; signatures are managed through ADMIN-SIGNATURE-01.
+- Supported types: PNG and JPEG only. pdf-lib (`embedPng` / `embedJpg`) cannot
+  embed WebP, so a WebP signature is rejected with a clear error before
+  generation, even though WebP is an allowed signature upload type. If WebP
+  support is needed later, convert it to PNG/JPEG in a follow-up ticket.
+- Placement: fixed overlay above the LEFT signature line (the
+  "(Signature of Admission Officer, Registrar, Agent)" line), inside the left
+  signature block. Lower-left anchor `x = 60`, `y = 164`, inside a fixed box
+  about 120 pt wide by 45 pt tall. The embedded image is scaled to fit the box
+  preserving aspect ratio (`scale = min(boxW/imgW, boxH/imgH)`). The box rests
+  just above the underline (the left line baseline is ~`y 160`, x range 36-216)
+  and stays clear of the Notes line above it (~`y 217`) and the printed label
+  below it (~`y 138-152`). It must not sit near the bottom Date field on the
+  right (the `Date:` line spans x 400-515 at ~`y 160`); the signature overlays
+  the left signature line only, and a typed signer name is never printed.
+- The signature overlays at a fixed position and never pushes, shifts, or
+  reflows other content. It is drawn on top of the existing template.
+- The selected signature id is stored on `receipt_records.signature_id`
+  (migration `20260603_finance_08_receipt_signature_id.sql`) for audit. The
+  image itself is not copied into `receipt_records`; the generated PDF already
+  carries the overlaid image.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   searchReceiptStudents,
   getNextReceiptSequence,
   type ReceiptStudentResult,
+  type ReceiptSignatureOption,
 } from "./new-receipt-actions";
 
 // FINANCE-06: admin-only new receipt form. Submits to the admin-only POST
@@ -57,8 +58,19 @@ function todayIso(): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export function NewReceiptForm() {
+export function NewReceiptForm({
+  signatures,
+  signaturesTableMissing,
+}: {
+  signatures: ReceiptSignatureOption[];
+  signaturesTableMissing: boolean;
+}) {
   const router = useRouter();
+
+  // Preselect the default active signature if there is one, otherwise the first
+  // active signature, otherwise none.
+  const defaultSignatureId =
+    signatures.find((s) => s.isDefault)?.id ?? signatures[0]?.id ?? "";
 
   // Student search/select.
   const [query, setQuery] = useState("");
@@ -76,7 +88,7 @@ export function NewReceiptForm() {
   const [primaryMethod, setPrimaryMethod] = useState<PrimaryMethod>("cash");
   const [cardBrand, setCardBrand] = useState("debit");
   const [notesType, setNotesType] = useState("enrolment_fee");
-  const [signatureVariant, setSignatureVariant] = useState("A");
+  const [signatureId, setSignatureId] = useState(defaultSignatureId);
 
   // Submission state.
   const [submitting, setSubmitting] = useState(false);
@@ -179,7 +191,7 @@ export function NewReceiptForm() {
           paymentDate,
           paymentMethod: effectivePaymentMethod,
           notesType,
-          signatureVariant,
+          signatureId: signatureId || undefined,
           receiptSequence:
             sequenceOverride.trim() !== "" ? Number(sequenceOverride) : undefined,
         }),
@@ -396,18 +408,43 @@ export function NewReceiptForm() {
           </div>
 
           <div>
-            <label className={labelClass} htmlFor="signatureVariant">
-              Signature variant
+            <label className={labelClass} htmlFor="signatureId">
+              Signature
             </label>
             <select
-              id="signatureVariant"
-              value={signatureVariant}
-              onChange={(e) => setSignatureVariant(e.target.value)}
-              className={`mt-1 ${inputClass}`}
+              id="signatureId"
+              value={signatureId}
+              onChange={(e) => setSignatureId(e.target.value)}
+              disabled={signatures.length === 0}
+              className={`mt-1 ${inputClass} disabled:bg-zinc-100`}
             >
-              <option value="A">Signature A</option>
-              <option value="B">Signature B</option>
+              <option value="">No signature</option>
+              {signatures.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.isDefault ? " (default)" : ""}
+                </option>
+              ))}
             </select>
+            {signaturesTableMissing ? (
+              <p className="mt-1 text-xs text-amber-600">
+                Signature records are not available in this environment yet.
+                Apply the admin signature migration to select a signature. The
+                receipt can still be generated without one.
+              </p>
+            ) : signatures.length === 0 ? (
+              <p className="mt-1 text-xs text-amber-600">
+                No active signature available. Upload or activate a signature in
+                Admin Tools / Utilities / Signature Management. The receipt can
+                still be generated without one.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-zinc-500">
+                The selected signature image is overlaid on the receipt PDF.
+                Choose &quot;No signature&quot; to leave the signature line
+                blank.
+              </p>
+            )}
           </div>
         </div>
       </div>

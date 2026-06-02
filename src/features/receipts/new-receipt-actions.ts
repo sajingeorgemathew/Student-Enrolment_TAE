@@ -76,6 +76,55 @@ async function loadApplicationContext(
   return pickLatestApplication((data ?? []) as unknown as ApplicationRow[]);
 }
 
+// FINANCE-08: a selectable admin signature for the receipt form.
+export type ReceiptSignatureOption = {
+  id: string;
+  name: string;
+  isDefault: boolean;
+};
+
+export type ReceiptSignatureListResult = {
+  signatures: ReceiptSignatureOption[];
+  // True when the admin_signatures table is not available yet (the
+  // ADMIN-SIGNATURE-01 migration has not been applied in this environment).
+  tableMissing: boolean;
+};
+
+// Load active admin signatures for the receipt form. Admin/super_admin only;
+// for any other role this returns an empty list so the form never offers a
+// signature. The default active signature (if any) is ordered first so the form
+// can preselect it.
+export async function getActiveReceiptSignatures(): Promise<ReceiptSignatureListResult> {
+  const profile = await getUserProfile();
+  if (!profile || !isAdminOrSuper(profile.role)) {
+    return { signatures: [], tableMissing: false };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("admin_signatures")
+    .select("id, name, is_default")
+    .eq("is_active", true)
+    .order("is_default", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    const tableMissing =
+      error.code === "42P01" || /admin_signatures/i.test(error.message ?? "");
+    return { signatures: [], tableMissing };
+  }
+
+  return {
+    signatures: (data ?? []).map((s) => ({
+      id: s.id,
+      name: s.name,
+      isDefault: Boolean(s.is_default),
+    })),
+    tableMissing: false,
+  };
+}
+
 const MAX_RESULTS = 20;
 
 // Search students by legal name or student number for the receipt form.

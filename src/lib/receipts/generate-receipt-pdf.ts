@@ -32,13 +32,6 @@ import {
 
 const TEMPLATE_PATH = "src/templates/receipts/toronto-academy-receipt-template.pdf";
 
-// Approved signature image URLs (from the blueprint). Kept here for the next
-// ticket; not fetched at runtime in FINANCE-04. See SIGNATURE handling below.
-export const SIGNATURE_IMAGE_URLS = {
-  A: "https://res.cloudinary.com/dfxihtsvj/image/upload/v1780005334/Screenshot_2025-04-05_144725_fbqubx.png",
-  B: "https://res.cloudinary.com/dfxihtsvj/image/upload/v1780054291/signature_sgm__4_-removebg-preview_fttasu.png",
-} as const;
-
 // ---------------------------------------------------------------------------
 // Coordinate map (lower-left text baselines, origin bottom-left, page 612x792).
 //
@@ -85,7 +78,19 @@ const COORDS = {
   eTransfer: { x: 301, y: 280 } as Point, // E-transfer box
   chequeBankDraft: { x: 401, y: 258 } as Point, // Cheque/bank draft box
   cashCheckbox: { x: 106, y: 235 } as Point, // Cash box
+  // Signature image: lower-left anchor of the box sitting directly above the
+  // LEFT signature line (the "(Signature of Admission Officer, Registrar,
+  // Agent)" line), inside the left signature block. It rests just above the
+  // underline (line baseline ~y 160) and stays clear of the Notes line above
+  // (~y 217) and the label below (~y 138-152). It must NOT sit near the bottom
+  // Date field on the right (x 400-515). See field map section 9.
+  signature: { x: 60, y: 164 } as Point,
 } as const;
+
+// Fixed signature image box (points). The embedded image is scaled to fit
+// inside this box preserving aspect ratio, so a larger or differently shaped
+// signature never pushes or reflows other content.
+const SIGNATURE_BOX = { width: 120, height: 45 } as const;
 
 const FONT_SIZE = {
   emphasis: 11, // receipt number, total amount
@@ -201,14 +206,41 @@ export async function generateReceiptPdf(
   draw(formatNotes(input.notesType), COORDS.notes, FONT_SIZE.small);
 
   // --- Signature -----------------------------------------------------------
-  // TODO(FINANCE-07): embed the approved signature image. Fetching a remote
-  // Cloudinary image at runtime is intentionally not done in this ticket to
-  // avoid a network dependency in the generator. When signature storage is
-  // available, load the bytes for input.signatureVariant (default "A") from a
-  // local/asset source and draw it with page.drawImage at the signature box
-  // (approx x=380, y=110, ~120x45 pt, preserve aspect ratio). Per the rule, a
-  // typed signer name is never printed.
-  void input.signatureVariant;
+  // FINANCE-08. When a signature image is provided, embed it and draw it inside
+  // the fixed signature box, preserving aspect ratio. The image is overlaid on
+  // top of the existing template at a fixed position, so it never pushes,
+  // shifts, or reflows other content. A typed signer name is never printed; if
+  // no signature is provided the signature line stays blank.
+  if (input.signatureImage) {
+    const { bytes, mimeType } = input.signatureImage;
+    // pdf-lib embeds PNG and JPEG only. The caller already rejects other types
+    // (for example WebP), but guard here so the generator never silently draws
+    // nothing or throws an opaque error.
+    if (mimeType !== "image/png" && mimeType !== "image/jpeg") {
+      throw new Error(
+        `Unsupported signature image type "${mimeType}". Only PNG and JPEG can be embedded.`
+      );
+    }
+    const image =
+      mimeType === "image/png"
+        ? await pdfDoc.embedPng(bytes)
+        : await pdfDoc.embedJpg(bytes);
+
+    // Scale to fit the box while preserving aspect ratio.
+    const scale = Math.min(
+      SIGNATURE_BOX.width / image.width,
+      SIGNATURE_BOX.height / image.height
+    );
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+
+    page.drawImage(image, {
+      x: COORDS.signature.x,
+      y: COORDS.signature.y,
+      width: drawWidth,
+      height: drawHeight,
+    });
+  }
 
   // --- Bottom date ---------------------------------------------------------
   draw(
