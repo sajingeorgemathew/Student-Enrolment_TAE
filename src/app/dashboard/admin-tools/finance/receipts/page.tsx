@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Receipt, Plus } from "lucide-react";
+import { Receipt, Plus, Download } from "lucide-react";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper } from "@/lib/roles";
 import { getReceiptRecords } from "@/features/receipts/actions";
@@ -210,11 +210,19 @@ export default async function ReceiptRegistryPage({
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs text-zinc-400">
-                          {r.pdf_storage_path
-                            ? "Download coming later"
-                            : "Detail coming later"}
-                        </span>
+                        {r.pdf_storage_path ? (
+                          <a
+                            href={`/api/receipts/download?id=${r.id}`}
+                            className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                            Download
+                          </a>
+                        ) : (
+                          <span className="text-xs text-zinc-400">
+                            Download unavailable
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
