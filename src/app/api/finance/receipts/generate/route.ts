@@ -13,10 +13,16 @@ import {
 } from "@/lib/receipts/receipt-types";
 
 // FINANCE-06: admin-only single receipt generation.
+// FINANCE-07: permanent storage and re-download.
 //
 // Creates one receipt_records row, generates the PDF with the FINANCE-04
-// generator, and streams the PDF bytes back for immediate download. No storage
-// upload yet (pdf_storage_path stays null) - permanent storage is FINANCE-07.
+// generator, uploads it to the private receipt-documents bucket, records the
+// storage path on the receipt, and streams the PDF bytes back for immediate
+// download. The flow is all-or-nothing: if generation, upload, or the path
+// update fails, the reserved record and any uploaded file are rolled back so
+// no broken receipt state is left behind.
+
+const RECEIPT_STORAGE_BUCKET = "receipt-documents";
 
 const PAYMENT_METHODS: ReceiptPaymentMethod[] = [
   "cash",
@@ -265,6 +271,61 @@ export async function POST(request: NextRequest) {
     }
     return bad(
       "The receipt PDF could not be generated. No receipt was saved. Please try again.",
+      500
+    );
+  }
+
+  // Upload the generated PDF to the private receipt-documents bucket. The path
+  // is student-linked and uses the receipt number as a safe file name. upsert is
+  // false so an existing receipt PDF is never silently overwritten; a conflict
+  // fails clearly. On any upload failure the reserved record is rolled back.
+  const storagePath = `${studentId}/receipts/${receiptNumber}.pdf`;
+  const uploadBody = new Uint8Array(pdfBytes);
+  const { error: uploadError } = await supabase.storage
+    .from(RECEIPT_STORAGE_BUCKET)
+    .upload(storagePath, uploadBody, {
+      contentType: "application/pdf",
+      upsert: false,
+    });
+
+  if (uploadError) {
+    if (inserted?.id) {
+      await supabase.from("receipt_records").delete().eq("id", inserted.id);
+    }
+    const message = uploadError.message ?? "";
+    if (/bucket not found/i.test(message)) {
+      return bad(
+        "The receipt-documents storage bucket does not exist yet. Create the private receipt-documents bucket in Supabase first. No receipt was saved.",
+        503
+      );
+    }
+    if (/exists|duplicate|already/i.test(message)) {
+      return bad(
+        `A stored receipt PDF already exists at ${storagePath}. No receipt was saved. Choose a different sequence.`,
+        409
+      );
+    }
+    console.error("Receipt PDF upload failed:", message);
+    return bad(
+      "The receipt PDF could not be stored. No receipt was saved. Please try again.",
+      500
+    );
+  }
+
+  // Link the stored file to the record. If this update fails the PDF is already
+  // in storage, so remove it and the record to avoid an orphan file and a
+  // receipt with a missing storage path.
+  const { error: pathError } = await supabase
+    .from("receipt_records")
+    .update({ pdf_storage_path: storagePath })
+    .eq("id", inserted.id);
+
+  if (pathError) {
+    await supabase.storage.from(RECEIPT_STORAGE_BUCKET).remove([storagePath]);
+    await supabase.from("receipt_records").delete().eq("id", inserted.id);
+    console.error("Receipt storage path update failed:", pathError.message);
+    return bad(
+      "The receipt PDF was stored but could not be linked to its record. No receipt was saved. Please try again.",
       500
     );
   }
