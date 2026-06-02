@@ -13,6 +13,10 @@ import { isCardPaymentMethod } from "./receipt-types";
 
 const STUDENT_PREFIX = "125";
 
+// The receipt template preprints "Receipt No: PSW-12500-25-". Only the dynamic
+// suffix is overlaid, so the generator strips this static prefix.
+const RECEIPT_NUMBER_PREFIX = "PSW-12500-25-";
+
 // ---------------------------------------------------------------------------
 // Receipt number
 // ---------------------------------------------------------------------------
@@ -37,22 +41,36 @@ export function formatReceiptNumber(
     ? digits.slice(STUDENT_PREFIX.length)
     : digits;
   const seq = String(sequence).padStart(2, "0");
-  return `PSW-12500-25-${remainder}-${seq}`;
+  return `${RECEIPT_NUMBER_PREFIX}${remainder}-${seq}`;
+}
+
+// Strip the static "PSW-12500-25-" prefix that the template already prints, so
+// the generator overlays only the dynamic "{remainder}-{seq}" portion. If the
+// value does not carry the known prefix it is returned unchanged.
+export function formatReceiptNumberSuffix(receiptNumber: string): string {
+  const value = String(receiptNumber ?? "");
+  return value.startsWith(RECEIPT_NUMBER_PREFIX)
+    ? value.slice(RECEIPT_NUMBER_PREFIX.length)
+    : value;
 }
 
 // ---------------------------------------------------------------------------
 // Student number display
 // ---------------------------------------------------------------------------
 
-// Always "PSW 125191", never bare "125191".
+// The numeric student number only, with any "PSW" prefix and separators
+// removed. Handles "125315", "PSW125315", and "PSW 125315" -> "125315".
+// The template preprints the "PSW" label on the Student No line, so the
+// generator overlays this numeric value (never a second "PSW").
+export function formatStudentNumberValue(studentNumber: string): string {
+  return String(studentNumber ?? "").replace(/\D/g, "");
+}
+
+// Full display string "PSW 125315" for UI contexts that have no preprinted
+// "PSW" label. Normalizes any input form so the prefix is never doubled.
 export function formatStudentNumberDisplay(studentNumber: string): string {
-  const value = String(studentNumber ?? "").trim();
-  if (!value) return "PSW";
-  // Avoid doubling the prefix if a caller already passed "PSW 125191".
-  if (/^PSW\b/i.test(value)) {
-    return `PSW ${value.replace(/^PSW\s*/i, "")}`;
-  }
-  return `PSW ${value}`;
+  const value = formatStudentNumberValue(studentNumber);
+  return value ? `PSW ${value}` : "PSW";
 }
 
 // ---------------------------------------------------------------------------
@@ -71,29 +89,28 @@ function toDdMmYyyy(dateStr: string): string {
   return `${dd}-${mm}-${yyyy}`;
 }
 
-// Top date: "DD-MM-YYYY (DD-MM-YYYY)".
+// Top date overlay: just the real date "DD-MM-YYYY".
 //
-// The reference receipt shows the real date followed by a literal "(DD-MM-YYYY)"
-// hint. Until calibration confirms whether the second segment is a real second
-// date, we reproduce the reference layout: real date plus the literal hint.
+// The template already prints the literal "(DD-MM-YYYY)" hint after the
+// "Date of Receipt:" blank, so the overlay must add only the real date.
+// The visible line reads "Date of Receipt: 02-07-2025 (DD-MM-YYYY)".
 export function formatReceiptTopDate(paymentDate: string): string {
-  const real = toDdMmYyyy(paymentDate);
-  if (!real) return "";
-  return `${real} (DD-MM-YYYY)`;
+  return toDdMmYyyy(paymentDate);
 }
 
-// Bottom date: "Date: DD-MM-YYYY".
+// Bottom date overlay: just the real date "DD-MM-YYYY".
+//
+// The template preprints the "Date:" label in the signature footer, so the
+// overlay adds only the date value. The visible line reads "Date: 02-07-2025".
 export function formatReceiptBottomDate(paymentDate: string): string {
-  const real = toDdMmYyyy(paymentDate);
-  if (!real) return "Date:";
-  return `Date: ${real}`;
+  return toDdMmYyyy(paymentDate);
 }
 
 // ---------------------------------------------------------------------------
 // Amount
 // ---------------------------------------------------------------------------
 
-// Canadian currency, e.g. "CAN $1,250.00".
+// Clean currency, e.g. "$677.00" or "$1,250.00". No "CAN " prefix.
 export function formatAmount(amount: number): string {
   const num = Number(amount);
   const safe = isNaN(num) ? 0 : num;
@@ -101,18 +118,20 @@ export function formatAmount(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-  return `CAN $${formatted}`;
+  return `$${formatted}`;
 }
 
 // ---------------------------------------------------------------------------
 // Notes
 // ---------------------------------------------------------------------------
 
+// The template preprints the "Notes:" label, so the overlay adds only the
+// value text. The visible line reads "Notes: Enrolment fee".
 const NOTES_TEXT: Record<ReceiptNotesType, string> = {
-  enrolment_fee: "Notes: Enrolment fee",
-  installment_payment: "Notes: Installment payment",
+  enrolment_fee: "Enrolment fee",
+  installment_payment: "Installment payment",
   late_fee_payment_installment_payment:
-    "Notes: Late fee payment / Installment payment",
+    "Late fee payment / Installment payment",
 };
 
 export function formatNotes(notesType: ReceiptNotesType): string {
