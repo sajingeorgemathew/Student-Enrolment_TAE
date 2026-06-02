@@ -42,6 +42,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# dev-only generator demo output
+/scripts/output
+
 # local-only reference source files
 _reference/source-files/*
 !_reference/source-files/.gitkeep
