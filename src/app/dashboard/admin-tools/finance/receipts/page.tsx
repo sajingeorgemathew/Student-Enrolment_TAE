@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Receipt } from "lucide-react";
+import { Receipt, Plus } from "lucide-react";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper } from "@/lib/roles";
 import { getReceiptRecords } from "@/features/receipts/actions";
@@ -83,22 +83,31 @@ export default async function ReceiptRegistryPage({
 
   return (
     <div>
-      <div className="mb-8">
-        <p className="text-sm text-zinc-500">
-          <Link
-            href="/dashboard/admin-tools/finance"
-            className="hover:text-zinc-900"
-          >
-            Finance
-          </Link>{" "}
-          / Receipts
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
-          Receipt Registry
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Generated receipt records across all students
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-zinc-500">
+            <Link
+              href="/dashboard/admin-tools/finance"
+              className="hover:text-zinc-900"
+            >
+              Finance
+            </Link>{" "}
+            / Receipts
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold text-zinc-900">
+            Receipt Registry
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Generated receipt records across all students
+          </p>
+        </div>
+        <Link
+          href="/dashboard/admin-tools/finance/receipts/new"
+          className="inline-flex shrink-0 items-center gap-2 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+        >
+          <Plus className="h-4 w-4" />
+          New Receipt
+        </Link>
       </div>
 
       <div className="mb-6">
