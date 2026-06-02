@@ -18,7 +18,18 @@ export type ReceiptNotesType =
   | "installment_payment"
   | "late_fee_payment_installment_payment";
 
-export type ReceiptSignatureVariant = "A" | "B";
+// FINANCE-08. Mime types the receipt generator can embed. pdf-lib supports PNG
+// and JPEG only; WebP is not embeddable and is rejected before generation.
+export type ReceiptSignatureMimeType = "image/png" | "image/jpeg";
+
+// FINANCE-08. Optional signature image to overlay on the receipt. The caller
+// (the generation route) loads the selected admin signature from the private
+// admin-signatures bucket and passes the raw bytes plus mime type. The
+// generator never prints a typed signer name.
+export type ReceiptSignatureImage = {
+  bytes: Uint8Array;
+  mimeType: ReceiptSignatureMimeType;
+};
 
 // Input to generateReceiptPdf. The receipt number is expected to be composed
 // by the caller (FINANCE-05/06), but formatReceiptNumber is exported here so
@@ -33,7 +44,8 @@ export type ReceiptPdfInput = {
   paymentDate: string;
   paymentMethod: ReceiptPaymentMethod;
   notesType: ReceiptNotesType;
-  signatureVariant?: ReceiptSignatureVariant;
+  // FINANCE-08. Optional. When omitted the signature line stays blank.
+  signatureImage?: ReceiptSignatureImage;
 };
 
 // The card brands that, when used as payment_method, are treated as a card

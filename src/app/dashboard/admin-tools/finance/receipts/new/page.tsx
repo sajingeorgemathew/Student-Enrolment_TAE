@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper } from "@/lib/roles";
 import { NewReceiptForm } from "@/features/receipts/new-receipt-form";
+import { getActiveReceiptSignatures } from "@/features/receipts/new-receipt-actions";
 
 export default async function NewReceiptPage() {
   const profile = await getUserProfile();
@@ -21,6 +22,9 @@ export default async function NewReceiptPage() {
       </div>
     );
   }
+
+  const { signatures, tableMissing: signaturesTableMissing } =
+    await getActiveReceiptSignatures();
 
   return (
     <div>
@@ -50,7 +54,10 @@ export default async function NewReceiptPage() {
       </div>
 
       <div className="max-w-3xl">
-        <NewReceiptForm />
+        <NewReceiptForm
+          signatures={signatures}
+          signaturesTableMissing={signaturesTableMissing}
+        />
       </div>
     </div>
   );

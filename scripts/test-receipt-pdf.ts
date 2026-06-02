@@ -31,21 +31,18 @@ async function main(): Promise<void> {
       receiptNumber: formatReceiptNumber(studentNumber, 1),
       paymentMethod: "cash",
       notesType: "enrolment_fee",
-      signatureVariant: "A",
     },
     {
       ...base,
       receiptNumber: formatReceiptNumber(studentNumber, 2),
       paymentMethod: "e_transfer",
       notesType: "installment_payment",
-      signatureVariant: "A",
     },
     {
       ...base,
       receiptNumber: formatReceiptNumber(studentNumber, 3),
       paymentMethod: "visa",
       notesType: "late_fee_payment_installment_payment",
-      signatureVariant: "A",
     },
   ];
 
