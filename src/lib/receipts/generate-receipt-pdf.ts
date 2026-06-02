@@ -24,8 +24,9 @@ import {
   formatAmount,
   formatNotes,
   formatReceiptBottomDate,
+  formatReceiptNumberSuffix,
   formatReceiptTopDate,
-  formatStudentNumberDisplay,
+  formatStudentNumberValue,
   resolvePaymentMarkers,
 } from "./receipt-formatters";
 
@@ -39,50 +40,69 @@ export const SIGNATURE_IMAGE_URLS = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Coordinate map (lower-left anchors, origin bottom-left, page 612 x 792).
-// Provisional values copied from docs/blueprint/receipt-pdf-field-map.md.
-// Calibrate against the rendered template before production use.
+// Coordinate map (lower-left text baselines, origin bottom-left, page 612x792).
+//
+// Calibrated against the runtime template by reading the printed label
+// positions (PyMuPDF word boxes converted to pdf-lib coordinates, baseline =
+// page_height - box_bottom + 2). The template preprints every label and
+// prefix, so each value is placed in the blank that follows its label:
+//
+//   "Receipt No: PSW-12500-25-"  -> suffix only      (y 594)
+//   "Student Name:"              -> student name      (y 500)
+//   "Student No:  PSW"           -> numeric value     (y 478)
+//   "Program Information: NACC Personal Support Worker (PSW)" -> preprinted,
+//                                   not overlaid (see below)
+//   "Total amount Paid:"         -> amount            (y 435)
+//   "Date of Receipt: ___ (DD-MM-YYYY)" -> date before the hint (y 413)
+//   payment options 1-5          -> X markers (left margin / inline)
+//   "Card Holder Name: ___"      -> student name, card only (y 327)
+//   "Notes: ___"                 -> notes value       (y 219)
+//   "Date: ___" (footer, right)  -> date              (y 161)
 // ---------------------------------------------------------------------------
 
 type Point = { x: number; y: number };
 
 const COORDS = {
-  receiptNumber: { x: 400, y: 730 } as Point,
-  studentName: { x: 150, y: 660 } as Point,
-  studentNumber: { x: 150, y: 635 } as Point,
-  programInformation: { x: 150, y: 610 } as Point,
-  totalAmount: { x: 400, y: 590 } as Point,
-  topDate: { x: 400, y: 700 } as Point,
-  // Payment method checkboxes.
-  debitCredit: { x: 90, y: 510 } as Point,
-  debit: { x: 130, y: 488 } as Point,
-  masterCard: { x: 130, y: 466 } as Point,
-  visa: { x: 130, y: 444 } as Point,
-  amex: { x: 130, y: 422 } as Point,
-  paypal: { x: 90, y: 400 } as Point,
-  eTransfer: { x: 90, y: 378 } as Point,
-  chequeBankDraft: { x: 90, y: 356 } as Point,
-  cashLabel: { x: 70, y: 334 } as Point,
-  cashCheckbox: { x: 90, y: 334 } as Point,
-  cardHolderName: { x: 200, y: 345 } as Point,
-  notes: { x: 90, y: 275 } as Point,
-  bottomDate: { x: 120, y: 110 } as Point,
+  // Values placed after their preprinted label.
+  receiptNumber: { x: 147, y: 594 } as Point,
+  studentName: { x: 121, y: 500 } as Point,
+  studentNumber: { x: 138, y: 478 } as Point,
+  totalAmount: { x: 140, y: 435 } as Point,
+  topDate: { x: 128, y: 413 } as Point,
+  cardHolderName: { x: 166, y: 327 } as Point,
+  notes: { x: 66, y: 219 } as Point,
+  bottomDate: { x: 428, y: 161 } as Point,
+  // Payment method markers (X), centered in the template's printed checkbox
+  // squares (box centers read from the template vectors). Option 1 itself has
+  // no checkbox; only the four card-type boxes do, so a card payment is marked
+  // by a left-margin X beside "1." plus the selected card-type box.
+  debitCredit: { x: 44, y: 350 } as Point, // option 1, left margin (no box)
+  debit: { x: 259, y: 349 } as Point, // Debit box
+  masterCard: { x: 350, y: 349 } as Point, // Master Card box
+  visa: { x: 403, y: 350 } as Point, // Visa box
+  amex: { x: 462, y: 350 } as Point, // Amex box
+  paypal: { x: 117, y: 303 } as Point, // Paypal box
+  eTransfer: { x: 301, y: 280 } as Point, // E-transfer box
+  chequeBankDraft: { x: 401, y: 258 } as Point, // Cheque/bank draft box
+  cashCheckbox: { x: 106, y: 235 } as Point, // Cash box
 } as const;
 
 const FONT_SIZE = {
-  emphasis: 12, // receipt number, total amount
-  body: 11, // name, student number, program, top date
-  small: 10, // notes, card holder name, bottom date, cash label
-  checkmark: 11,
+  emphasis: 11, // receipt number, total amount
+  body: 11, // name, student number, top date
+  small: 10, // notes, card holder name, bottom date
+  checkmark: 11, // sized to sit inside the ~11pt checkbox squares
 } as const;
 
-// Cash line overlay text. The field map (section 7) says Cash must appear on
-// every receipt; until calibration confirms Cash is preprinted, we overlay the
-// label. The "5. Cash" wording follows the ticket Cash Line Rule.
+// The runtime template preprints the "5. Cash" line, so the generator does not
+// overlay a Cash label; it only draws the X marker when the method is cash. If
+// a future blank template drops the Cash line, set this to true to overlay it.
+const OVERLAY_CASH_LABEL = false;
 const CASH_LABEL_TEXT = "5. Cash";
+const CASH_LABEL_POINT: Point = { x: 54, y: 235 };
 
 // Simple marker that renders reliably with a core font and needs no special
-// font dependency. "X" reads clearly over a printed checkbox.
+// font dependency. "X" reads clearly beside a printed option.
 const CHECK_MARK = "X";
 
 /**
@@ -130,17 +150,26 @@ export async function generateReceiptPdf(
   };
 
   // --- Identity band -------------------------------------------------------
-  draw(input.receiptNumber, COORDS.receiptNumber, FONT_SIZE.emphasis, true);
+  // Template preprints "Receipt No: PSW-12500-25-"; overlay only the suffix.
+  draw(
+    formatReceiptNumberSuffix(input.receiptNumber),
+    COORDS.receiptNumber,
+    FONT_SIZE.emphasis,
+    true
+  );
+  // Template preprints the literal "(DD-MM-YYYY)" hint; overlay only the date.
   draw(formatReceiptTopDate(input.paymentDate), COORDS.topDate, FONT_SIZE.body);
 
-  // --- Student / program band ---------------------------------------------
+  // --- Student band --------------------------------------------------------
   draw(input.studentName, COORDS.studentName, FONT_SIZE.body);
+  // Template preprints the "PSW" label; overlay only the numeric value.
   draw(
-    formatStudentNumberDisplay(input.studentNumber),
+    formatStudentNumberValue(input.studentNumber),
     COORDS.studentNumber,
     FONT_SIZE.body
   );
-  draw(input.programInformation, COORDS.programInformation, FONT_SIZE.body);
+  // Program information is preprinted on the template ("NACC Personal Support
+  // Worker (PSW)"), so it is not overlaid (overlaying would duplicate it).
 
   // --- Amount --------------------------------------------------------------
   draw(formatAmount(input.amountPaid), COORDS.totalAmount, FONT_SIZE.emphasis, true);
@@ -156,9 +185,11 @@ export async function generateReceiptPdf(
   if (markers.eTransfer) drawCheck(COORDS.eTransfer);
   if (markers.chequeBankDraft) drawCheck(COORDS.chequeBankDraft);
 
-  // Cash line: always overlay the label so Cash appears on every receipt, and
-  // check it only for cash payments.
-  draw(CASH_LABEL_TEXT, COORDS.cashLabel, FONT_SIZE.small);
+  // Cash line: the template already prints "5. Cash", so the label is only
+  // overlaid as a guarded fallback. The X marker is drawn only for cash.
+  if (OVERLAY_CASH_LABEL) {
+    draw(CASH_LABEL_TEXT, CASH_LABEL_POINT, FONT_SIZE.small);
+  }
   if (markers.cash) drawCheck(COORDS.cashCheckbox);
 
   // Card holder name: card payments only, student name, and nowhere else.

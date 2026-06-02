@@ -31,13 +31,20 @@ API route, UI, or schema change is introduced by this ticket.
 
 ### Blank or value-filled
 
-- The current runtime template is value-filled (sample), not a clean blank
-  template. It still carries the sample student values from receipt
-  `PSW-12500-25-52-01` (student `12552`).
-- This is a temporary template used so the field map and future generator can
-  be developed against the real layout.
-- See section 11 (Template Limitation) for the production replacement
-  recommendation.
+- Updated in FINANCE-06-FIX: the runtime template has been cleaned. It is now a
+  blank template that contains only the preprinted labels, the static program
+  line, the empty payment-method checkboxes, and the footer. It no longer
+  carries any sample student values (the old `PSW-12500-25-52-01` / student
+  `12552` data, sample checkmarks, and sample signature are gone).
+- Confirmed by rendering the template at 150 dpi: every value field is blank
+  ("Student Name:", "Student No: PSW", "Total amount Paid:", "Date of Receipt:
+  ___ (DD-MM-YYYY)", "Receipt No: PSW-12500-25-", "Notes:", "Date:"), and the
+  signature line is empty.
+- Important consequence: because the template preprints every label and prefix,
+  the generator overlays only the dynamic value into the blank that follows
+  each label. It does not redraw labels or prefixes (doing so previously caused
+  doubling such as "PSW PSW125315"). See section 4.
+- See section 11 (Template Limitation) for the remaining production note.
 
 ### Page size
 
@@ -107,44 +114,60 @@ every number as provisional until calibrated.
 
 ## 4. Overlay Field Map
 
-Coordinates are approximate lower-left anchors in PDF points, origin
-bottom-left, page 612 x 792. `x` and `y` are estimates to be calibrated.
+Calibrated in FINANCE-06-FIX. Coordinates are lower-left text baselines (or
+checkbox-X anchors) in PDF points, origin bottom-left, page 612 x 792. They were
+read from the template's own printed label and checkbox positions (PyMuPDF word
+and vector boxes converted to pdf-lib coordinates: `baseline = 792 - box_bottom
++ 2`) and confirmed against rendered cash, e-transfer, and card test receipts.
 
-| Field | Source (receipt_records) | Approx x | Approx y | Font | Notes |
+Because the template preprints every label and prefix, the overlay places only
+the dynamic value in the blank that follows each label. Labels and prefixes
+(`Receipt No: PSW-12500-25-`, `Student No: PSW`, `Date of Receipt:`,
+`(DD-MM-YYYY)`, `Date:`, `Notes:`, `5. Cash`, the program line) are never
+redrawn.
+
+| Field | Source (receipt_records) | x | y | Font | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `receipt_number` | `receipt_number` | 400 | 730 | 11 to 12 bold | Full number, format `PSW-12500-25-{rem}-{seq}` |
-| `student_name` | `student_name_snapshot` | 150 | 660 | 10 to 11 | Student legal full name |
-| `student_number_display` | derived from `student_number_snapshot` | 150 | 635 | 10 to 11 | Always `PSW 125191`, never bare `125191` |
-| `program_information` | `program_id` join (program name) | 150 | 610 | 10 to 11 | Program name and relevant program info |
-| `total_amount_paid` | `amount` | 400 | 590 | 11 to 12 bold | Currency, for example `CAN $1,250.00` |
-| `date_of_receipt_top` | `receipt_date` | 400 | 700 | 10 to 11 | Format `DD-MM-YYYY (DD-MM-YYYY)` |
-| `debit_credit_checkbox` | `payment_method = card` | 90 | 510 | checkmark | Main Debit/Credit Card option |
-| `debit_checkbox` | `card_type = debit` | 130 | 488 | checkmark | Monnex sub-option |
-| `master_card_checkbox` | `card_type = master_card` | 130 | 466 | checkmark | Monnex sub-option |
-| `visa_checkbox` | `card_type = visa` | 130 | 444 | checkmark | Monnex sub-option |
-| `amex_checkbox` | `card_type = amex` | 130 | 422 | checkmark | Monnex sub-option |
-| `paypal_checkbox` | `payment_method = paypal` | 90 | 400 | checkmark | Primary method |
-| `etransfer_checkbox` | `payment_method = e_transfer` | 90 | 378 | checkmark | Primary method, to admin@torontoacademy.ca |
-| `cheque_bank_draft_checkbox` | `payment_method = cheque_bank_draft` | 90 | 356 | checkmark | Primary method |
-| `cash_label` | static overlay | 70 | 334 | 10 | Cash line text, overlaid if not preprinted (see section 7) |
-| `cash_checkbox` | `payment_method = cash` | 90 | 334 | checkmark | Checked only for cash |
-| `card_holder_name` | `student_name_snapshot` | 200 | 345 | 10 | Card payments only, blank otherwise (see section 5) |
-| `notes` | `notes_type` mapped to text | 90 | 275 | 10 | Allowed wording only (see section 8) |
-| `signature_image` | fixed approved image | 380 | 110 | image | Drawn image, fixed box (see section 9) |
-| `bottom_date` | `receipt_date` | 120 | 110 | 10 | Format `Date: DD-MM-YYYY` (see section 10) |
+| `receipt_number_suffix` | `receipt_number` | 147 | 594 | 11 bold | Only `{rem}-{seq}`; the `PSW-12500-25-` prefix is preprinted |
+| `student_name` | `student_name_snapshot` | 121 | 500 | 11 | Student legal full name |
+| `student_number_value` | derived from `student_number_snapshot` | 138 | 478 | 11 | Numeric only, e.g. `125315`; the `PSW` label is preprinted |
+| `program_information` | preprinted on template | - | - | - | Not overlaid; template prints `NACC Personal Support Worker (PSW)` |
+| `total_amount_paid` | `amount` | 140 | 435 | 11 bold | Currency, for example `$677.00` (no `CAN ` prefix) |
+| `date_of_receipt_top` | `receipt_date` | 128 | 413 | 11 | Only the date `DD-MM-YYYY`; the `(DD-MM-YYYY)` hint is preprinted |
+| `debit_credit_marker` | card method | 44 | 350 | X 11 | Left margin beside "1." (option 1 has no checkbox of its own) |
+| `debit_checkbox` | `card_type = debit` | 259 | 349 | X 11 | Monnex Debit box |
+| `master_card_checkbox` | `card_type = master_card` | 350 | 349 | X 11 | Monnex Master Card box |
+| `visa_checkbox` | `card_type = visa` | 403 | 350 | X 11 | Monnex Visa box |
+| `amex_checkbox` | `card_type = amex` | 462 | 350 | X 11 | Monnex Amex box |
+| `paypal_checkbox` | `payment_method = paypal` | 117 | 303 | X 11 | Paypal box (option 2) |
+| `etransfer_checkbox` | `payment_method = e_transfer` | 301 | 280 | X 11 | E-transfer box (option 3) |
+| `cheque_bank_draft_checkbox` | `payment_method = cheque_bank_draft` | 401 | 258 | X 11 | Cheque/bank draft box (option 4) |
+| `cash_checkbox` | `payment_method = cash` | 106 | 235 | X 11 | Cash box (option 5); checked only for cash |
+| `card_holder_name` | `student_name_snapshot` | 166 | 327 | 10 | Card payments only, blank otherwise (see section 5) |
+| `notes` | `notes_type` mapped to text | 66 | 219 | 10 | Value only, e.g. `Enrolment fee`; `Notes:` is preprinted |
+| `signature_image` | fixed approved image | 380 | 110 | image | Not yet implemented (see section 9) |
+| `bottom_date` | `receipt_date` | 428 | 161 | 10 | Only the date `DD-MM-YYYY`; the `Date:` label is preprinted |
+
+Note: the template's option 1 line ("1. Debit/Credit Card type (Monnex):") has
+no checkbox of its own; only the four card-type squares (Debit, Master Card,
+Visa, Amex) are printed. A card payment is therefore marked with a left-margin X
+beside "1." plus the X in the selected card-type box.
 
 Field-by-field detail:
 
-- `receipt_number`: display the full composed number. Never show only the
-  sequence or only the remainder.
-- `student_number_display`: build the display string by prefixing `PSW ` to the
-  stored student number. Source value is `student_number_snapshot`.
-- `program_information`: the program name (and any short program context that
-  the template line expects). Sourced via the receipt record's `program_id`
-  relation at generation time.
-- `total_amount_paid`: format `amount` as Canadian currency. Right-align near
-  the amount line if the template label sits to the left.
-- `date_of_receipt_top`: see section 6 for the exact date format.
+- `receipt_number_suffix`: the template prints `Receipt No: PSW-12500-25-`, so
+  the overlay draws only the `{rem}-{seq}` suffix (via
+  `formatReceiptNumberSuffix`). The full composed number is still stored in
+  `receipt_records.receipt_number`.
+- `student_number_value`: the template prints the `PSW` label, so the overlay
+  draws only the numeric value (via `formatStudentNumberValue`, which strips any
+  `PSW` prefix and separators). The full `PSW 125315` display string is still
+  available via `formatStudentNumberDisplay` for UI contexts.
+- `program_information`: the template line is static
+  (`NACC Personal Support Worker (PSW)`), so the generator does not overlay it.
+  Overlaying would duplicate the program text.
+- `total_amount_paid`: format `amount` as `$#,##0.00` (no `CAN ` prefix).
+- `date_of_receipt_top`: see section 6 for the exact date handling.
 
 ---
 
@@ -202,12 +225,14 @@ Checkmark style:
 
 ## 6. Date Rules
 
-- `date_of_receipt_top` (top of receipt): format `DD-MM-YYYY (DD-MM-YYYY)`,
-  for example `02-07-2025 (DD-MM-YYYY)`. The literal `(DD-MM-YYYY)` hint mirrors
-  the reference receipt layout; the generator ticket should confirm whether the
-  second segment is a literal hint or a second real date and lock the format.
-- `bottom_date` (near signature): format `Date: DD-MM-YYYY`, for example
-  `Date: 02-07-2025`.
+- `date_of_receipt_top` (top of receipt): the visible line is
+  `DD-MM-YYYY (DD-MM-YYYY)`, for example `02-07-2025 (DD-MM-YYYY)`. Confirmed in
+  FINANCE-06-FIX: the literal `(DD-MM-YYYY)` segment is preprinted on the
+  template, so the overlay draws only the real date `DD-MM-YYYY` in the blank
+  before it (`formatReceiptTopDate`).
+- `bottom_date` (near signature): the visible line is `Date: DD-MM-YYYY`, for
+  example `Date: 02-07-2025`. The `Date:` label is preprinted, so the overlay
+  draws only the real date `DD-MM-YYYY` (`formatReceiptBottomDate`).
 - Both dates use `receipt_records.receipt_date` (the date printed on the
   receipt). Never generate a random date. Use the admin-entered or selected
   date.
@@ -216,16 +241,13 @@ Checkmark style:
 
 ## 7. Cash Line Overlay Behavior
 
-- The reference layout lists Cash as a payment option. If the runtime template
-  does not already print a Cash line, the generator overlays a `cash_label`
-  text ("Cash") plus the `cash_checkbox` so Cash always appears as a selectable
-  option on every receipt.
-- If the template already prints the Cash line, the generator skips the
-  `cash_label` overlay and only draws the `cash_checkbox` mark when the payment
-  method is cash.
-- The generator ticket must confirm, against the calibrated template, whether
-  Cash is preprinted. Until confirmed, treat `cash_label` as an overlay that
-  may be needed.
+- Confirmed in FINANCE-06-FIX: the runtime template preprints the
+  `5. Cash` line and its checkbox, so the generator does not overlay a Cash
+  label. It only draws the `cash_checkbox` X (centered in the printed box at
+  x 106, y 235) when `payment_method = cash`.
+- The label overlay is retained as a guarded fallback only
+  (`OVERLAY_CASH_LABEL`, default `false`). If a future template ever drops the
+  Cash line, set the flag to `true` to overlay `5. Cash`.
 - `cash_checkbox` is checked only when `payment_method = cash`.
 
 ---
@@ -250,6 +272,10 @@ Rules:
 
 ## 9. Signature Image Placement Rule
 
+- Status (FINANCE-06-FIX): not yet implemented. The generator leaves a
+  documented `TODO(FINANCE-07)` and never prints a typed signer name. The
+  signature line stays blank on generated receipts. Signature image rendering
+  and upload management are out of scope for this ticket.
 - Use a signature image only. Do not print a typed signer name anywhere on the
   receipt.
 - Approved signature images (from the blueprint):
@@ -279,22 +305,23 @@ Rules:
 
 ## 11. Template Limitation
 
-- The current runtime template
-  `src/templates/receipts/toronto-academy-receipt-template.pdf` is the
-  value-filled sample receipt (`PSW-12500-25-52-01`, student `12552`), not a
-  clean blank template.
-- Overlaying new values on top of a template that already shows sample student
-  data would produce a receipt with two sets of values (the printed sample plus
-  the overlay). This is acceptable for development and field-map calibration
-  only.
-- Before production, a clean, value-free blank receipt template must replace
-  this file at the same path. The blank template should keep the header,
-  footer, payment-method layout, and signature area, but remove all sample
-  student values (receipt number, name, student number, program, amount, dates,
-  checkmarks, notes, and signature).
-- Once the blank template is in place, re-run the calibration in section 2,
-  since exact label positions may shift slightly between the sample and the
-  clean template.
+- Resolved in FINANCE-06-FIX. The runtime template
+  `src/templates/receipts/toronto-academy-receipt-template.pdf` is now a clean
+  blank template: the sample student values (`PSW-12500-25-52-01`, student
+  `12552`, sample checkmarks, sample signature) have been removed, leaving only
+  the labels, the static program line, the empty checkboxes, and the footer.
+  Generated receipts no longer show two sets of values.
+- The coordinates in section 4 are now calibrated against this clean template,
+  so no re-calibration is required for the current file.
+- Remaining production notes:
+  - The cleaned template was produced programmatically (pypdf) and lives in the
+    working tree for this ticket; commit it as the production template.
+  - The program line `NACC Personal Support Worker (PSW)` is preprinted and
+    static. That is correct for PSW receipts; a different program would need a
+    different template or an overlaid program value.
+  - The `(DD-MM-YYYY)` hint next to the top date is a preprinted artifact from
+    the original layout. It is harmless (the real date is overlaid before it),
+    but it could be removed from the template for a cleaner look if desired.
 
 ---
 

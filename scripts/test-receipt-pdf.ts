@@ -16,28 +16,51 @@ import { formatReceiptNumber } from "../src/lib/receipts/receipt-formatters";
 import type { ReceiptPdfInput } from "../src/lib/receipts/receipt-types";
 
 async function main(): Promise<void> {
-  const studentNumber = "125191";
-  const sample: ReceiptPdfInput = {
-    receiptNumber: formatReceiptNumber(studentNumber, 1),
+  const studentNumber = "125315";
+  const base = {
     studentName: "JANE MARIE DOE",
     studentNumber,
     programInformation: "NACC Personal Support Worker (PSW)",
-    amountPaid: 1250,
+    amountPaid: 677,
     paymentDate: "2025-07-02",
-    paymentMethod: "visa",
-    notesType: "installment_payment",
-    signatureVariant: "A",
   };
 
-  const bytes = await generateReceiptPdf(sample);
+  const samples: ReceiptPdfInput[] = [
+    {
+      ...base,
+      receiptNumber: formatReceiptNumber(studentNumber, 1),
+      paymentMethod: "cash",
+      notesType: "enrolment_fee",
+      signatureVariant: "A",
+    },
+    {
+      ...base,
+      receiptNumber: formatReceiptNumber(studentNumber, 2),
+      paymentMethod: "e_transfer",
+      notesType: "installment_payment",
+      signatureVariant: "A",
+    },
+    {
+      ...base,
+      receiptNumber: formatReceiptNumber(studentNumber, 3),
+      paymentMethod: "visa",
+      notesType: "late_fee_payment_installment_payment",
+      signatureVariant: "A",
+    },
+  ];
 
   const outDir = path.join(process.cwd(), "scripts", "output");
   fs.mkdirSync(outDir, { recursive: true });
-  const outPath = path.join(outDir, `${sample.receiptNumber}.pdf`);
-  fs.writeFileSync(outPath, bytes);
 
-  console.log("Receipt number:", sample.receiptNumber);
-  console.log("Wrote demo receipt to:", outPath);
+  for (const sample of samples) {
+    const bytes = await generateReceiptPdf(sample);
+    const outPath = path.join(
+      outDir,
+      `${sample.paymentMethod}-${sample.receiptNumber}.pdf`
+    );
+    fs.writeFileSync(outPath, bytes);
+    console.log(`Wrote ${sample.paymentMethod} receipt to:`, outPath);
+  }
 }
 
 main().catch((err) => {
