@@ -2,9 +2,16 @@ import Link from "next/link";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper } from "@/lib/roles";
 import { NewReceiptForm } from "@/features/receipts/new-receipt-form";
-import { getActiveReceiptSignatures } from "@/features/receipts/new-receipt-actions";
+import {
+  getActiveReceiptSignatures,
+  getReceiptStudentById,
+} from "@/features/receipts/new-receipt-actions";
 
-export default async function NewReceiptPage() {
+export default async function NewReceiptPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const profile = await getUserProfile();
   const isAdmin = isAdminOrSuper(profile?.role ?? null);
 
@@ -23,8 +30,15 @@ export default async function NewReceiptPage() {
     );
   }
 
-  const { signatures, tableMissing: signaturesTableMissing } =
-    await getActiveReceiptSignatures();
+  const params = await searchParams;
+  const studentId =
+    typeof params.studentId === "string" ? params.studentId : undefined;
+
+  const [{ signatures, tableMissing: signaturesTableMissing }, initialStudent] =
+    await Promise.all([
+      getActiveReceiptSignatures(),
+      studentId ? getReceiptStudentById(studentId) : Promise.resolve(null),
+    ]);
 
   return (
     <div>
@@ -57,6 +71,7 @@ export default async function NewReceiptPage() {
         <NewReceiptForm
           signatures={signatures}
           signaturesTableMissing={signaturesTableMissing}
+          initialStudent={initialStudent}
         />
       </div>
     </div>

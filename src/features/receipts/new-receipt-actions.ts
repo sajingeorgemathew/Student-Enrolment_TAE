@@ -125,6 +125,45 @@ export async function getActiveReceiptSignatures(): Promise<ReceiptSignatureList
   };
 }
 
+// FINANCE-10: resolve a single student by id for the new receipt form, so the
+// student hub can deep-link with ?studentId={id} and have the student
+// preselected. Admin/super_admin only; any other role gets null so the form
+// never preselects a student for them (and the page already blocks non-admins).
+export async function getReceiptStudentById(
+  studentId: string
+): Promise<ReceiptStudentResult | null> {
+  const profile = await getUserProfile();
+  if (!profile || !isAdminOrSuper(profile.role)) {
+    return null;
+  }
+
+  if (!studentId) return null;
+
+  const supabase = await createClient();
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id, student_number, legal_full_name")
+    .eq("id", studentId)
+    .maybeSingle();
+
+  if (!student) return null;
+
+  const app = await loadApplicationContext(supabase, student.id);
+
+  return {
+    id: student.id,
+    studentNumber: student.student_number,
+    studentName: student.legal_full_name ?? "",
+    applicationId: app?.id ?? null,
+    programId: app?.program_id ?? null,
+    batchId: app?.batch_id ?? null,
+    programName: app?.programs?.program_name ?? null,
+    batchName: app?.batches?.batch_name ?? null,
+    applicationStatus: app?.status ?? null,
+  };
+}
+
 const MAX_RESULTS = 20;
 
 // Search students by legal name or student number for the receipt form.

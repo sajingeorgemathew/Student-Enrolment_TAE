@@ -77,10 +77,19 @@ export default async function ReceiptRegistryPage({
     paymentMethod: pick("paymentMethod"),
     notesType: pick("notesType"),
     voidStatus: pick("voidStatus"),
+    // FINANCE-10: the student hub links here with ?studentId={id} so the
+    // registry can be scoped to one student. The visible filter controls do not
+    // expose this param; it is applied server-side only and cleared by the
+    // "Show all receipts" link below.
+    studentId: pick("studentId"),
   };
 
   const hasFilters = Object.values(filters).some(Boolean);
   const { records, tableMissing } = await getReceiptRecords(filters);
+  const studentFilterName =
+    filters.studentId && records.length > 0
+      ? records[0].student_name_snapshot
+      : null;
 
   return (
     <div>
@@ -110,6 +119,24 @@ export default async function ReceiptRegistryPage({
           New Receipt
         </Link>
       </div>
+
+      {filters.studentId && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-zinc-200 bg-zinc-50 px-4 py-3">
+          <p className="text-sm text-zinc-700">
+            Showing receipts for{" "}
+            <span className="font-medium">
+              {studentFilterName ?? "the selected student"}
+            </span>{" "}
+            only.
+          </p>
+          <Link
+            href="/dashboard/admin-tools/finance/receipts"
+            className="text-sm font-medium text-zinc-600 hover:text-zinc-900"
+          >
+            Show all receipts
+          </Link>
+        </div>
+      )}
 
       <div className="mb-6">
         <ReceiptFilters />
