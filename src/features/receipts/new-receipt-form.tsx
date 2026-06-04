@@ -61,9 +61,13 @@ function todayIso(): string {
 export function NewReceiptForm({
   signatures,
   signaturesTableMissing,
+  initialStudent = null,
 }: {
   signatures: ReceiptSignatureOption[];
   signaturesTableMissing: boolean;
+  // FINANCE-10: when the student hub deep-links with ?studentId={id}, the page
+  // resolves the student and passes it here so it is preselected.
+  initialStudent?: ReceiptStudentResult | null;
 }) {
   const router = useRouter();
 
@@ -76,7 +80,9 @@ export function NewReceiptForm({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ReceiptStudentResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<ReceiptStudentResult | null>(null);
+  const [selected, setSelected] = useState<ReceiptStudentResult | null>(
+    initialStudent
+  );
 
   // Sequence preview.
   const [nextSequence, setNextSequence] = useState(1);
@@ -94,6 +100,25 @@ export function NewReceiptForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // FINANCE-10: when a student is preselected from the student hub deep link,
+  // resolve its next receipt sequence once on mount (handleSelectStudent does
+  // this for manually picked students, but the preselected one skips that path).
+  useEffect(() => {
+    if (!initialStudent) return;
+    let cancelled = false;
+    (async () => {
+      const { nextSequence: seq } = await getNextReceiptSequence(
+        initialStudent.id
+      );
+      if (!cancelled) setNextSequence(seq);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // Run once for the initial student only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Debounced student search. All state updates happen inside the debounced
   // callback (asynchronously), and a cancelled flag drops stale responses.

@@ -12,6 +12,8 @@ import { ContractGenerationHistory } from "@/features/contracts/contract-generat
 import { EmbeddedDocumentUpload } from "@/features/documents/embedded-document-upload";
 import { InlineReviewStatus } from "@/features/documents/inline-review-status";
 import { FeeSection } from "@/features/fees/fee-section";
+import { StudentReceiptSummarySection } from "@/features/receipts/student-receipt-summary";
+import { getStudentReceiptSummary } from "@/features/receipts/actions";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper, isSalesOrAdmin, isSuperAdmin } from "@/lib/roles";
 import { ArchiveControls } from "@/features/archive/archive-controls";
@@ -146,6 +148,11 @@ export default async function StudentDetailPage({
   const archiveInfo = isAdmin
     ? await getArchiveInfo("students", studentId)
     : null;
+
+  // FINANCE-10: student-specific receipt summary. Read-only for all roles;
+  // admin/super_admin additionally get download, Generate Receipt, and registry
+  // links inside the section.
+  const receiptSummary = await getStudentReceiptSummary(studentId);
 
   const latestApp = applications[0] as (typeof applications)[0] | undefined;
 
@@ -1016,6 +1023,13 @@ export default async function StudentDetailPage({
             )}
           </div>
         </div>
+
+        {/* 9b. Receipts - student-specific summary (FINANCE-10) */}
+        <StudentReceiptSummarySection
+          studentId={studentId}
+          summary={receiptSummary}
+          isAdmin={isAdmin}
+        />
 
         {/* 10. Ready for Contract Summary */}
         {latestApp && (
