@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Student Enrolment — TAE",
+  title: "Toronto Academy of Education - Portal",
   description: "Student enrolment management for Toronto Academy of Education",
 };
 
