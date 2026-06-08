@@ -10,8 +10,40 @@ export type StudentFormState = {
   error?: string;
 };
 
-export async function getStudents(search?: string, batchId?: string) {
+// ACADEMIC-02: legacy filter values. "current" excludes legacy/historical
+// imported students, "legacy" shows only them, "all" shows everything.
+export type LegacyFilter = "current" | "legacy" | "all";
+
+export async function getStudents(
+  search?: string,
+  batchId?: string,
+  legacyFilter: LegacyFilter = "current"
+) {
   const supabase = await createClient();
+
+  const selectColumns = `
+        id,
+        student_number,
+        legal_first_name,
+        legal_middle_name,
+        legal_last_name,
+        email,
+        phone,
+        city,
+        province,
+        created_at,
+        archived_at,
+        archive_reason,
+        is_legacy,
+        record_source,
+        applications (
+          id,
+          status,
+          program_id,
+          programs (id, program_name, program_code),
+          batches (id, batch_name)
+        )
+      `;
 
   if (batchId) {
     const { data: apps } = await supabase
@@ -25,31 +57,15 @@ export async function getStudents(search?: string, batchId?: string) {
 
     let query = supabase
       .from("students")
-      .select(
-        `
-        id,
-        student_number,
-        legal_first_name,
-        legal_middle_name,
-        legal_last_name,
-        email,
-        phone,
-        city,
-        province,
-        created_at,
-        archived_at,
-        archive_reason,
-        applications (
-          id,
-          status,
-          program_id,
-          programs (id, program_name, program_code),
-          batches (id, batch_name)
-        )
-      `
-      )
+      .select(selectColumns)
       .in("id", studentIds)
       .order("created_at", { ascending: false });
+
+    if (legacyFilter === "current") {
+      query = query.eq("is_legacy", false);
+    } else if (legacyFilter === "legacy") {
+      query = query.eq("is_legacy", true);
+    }
 
     if (search && search.trim()) {
       const term = `%${search.trim()}%`;
@@ -64,30 +80,14 @@ export async function getStudents(search?: string, batchId?: string) {
 
   let query = supabase
     .from("students")
-    .select(
-      `
-      id,
-      student_number,
-      legal_first_name,
-      legal_middle_name,
-      legal_last_name,
-      email,
-      phone,
-      city,
-      province,
-      created_at,
-      archived_at,
-      archive_reason,
-      applications (
-        id,
-        status,
-        program_id,
-        programs (id, program_name, program_code),
-        batches (id, batch_name)
-      )
-    `
-    )
+    .select(selectColumns)
     .order("created_at", { ascending: false });
+
+  if (legacyFilter === "current") {
+    query = query.eq("is_legacy", false);
+  } else if (legacyFilter === "legacy") {
+    query = query.eq("is_legacy", true);
+  }
 
   if (search && search.trim()) {
     const term = `%${search.trim()}%`;

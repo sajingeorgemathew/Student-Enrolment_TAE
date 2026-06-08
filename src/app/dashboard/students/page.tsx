@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
-import { getStudents } from "@/features/students/actions";
+import { getStudents, type LegacyFilter } from "@/features/students/actions";
 import { StudentSearch } from "@/features/students/student-search";
 
 const statusLabels: Record<string, string> = {
@@ -30,10 +30,30 @@ export default async function StudentsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { search, batchId } = await searchParams;
+  const { search, batchId, legacy } = await searchParams;
   const searchTerm = typeof search === "string" ? search : undefined;
   const batchFilter = typeof batchId === "string" ? batchId : undefined;
-  const students = await getStudents(searchTerm, batchFilter);
+  // ACADEMIC-02: default to "current" so legacy/historical imported students are
+  // not mixed into daily active admissions. All existing students are
+  // non-legacy, so this keeps the current list behavior unchanged.
+  const legacyFilter: LegacyFilter =
+    legacy === "all" || legacy === "legacy" ? legacy : "current";
+  const students = await getStudents(searchTerm, batchFilter, legacyFilter);
+
+  const filterTabs: { value: LegacyFilter; label: string }[] = [
+    { value: "current", label: "Current" },
+    { value: "legacy", label: "Legacy" },
+    { value: "all", label: "All" },
+  ];
+
+  function buildFilterHref(value: LegacyFilter): string {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set("search", searchTerm);
+    if (batchFilter) params.set("batchId", batchFilter);
+    if (value !== "current") params.set("legacy", value);
+    const qs = params.toString();
+    return qs ? `/dashboard/students?${qs}` : "/dashboard/students";
+  }
 
   return (
     <div>
@@ -55,8 +75,25 @@ export default async function StudentsPage({
         )}
       </div>
 
-      <div className="mb-6">
-        <StudentSearch />
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1">
+          <StudentSearch />
+        </div>
+        <div className="inline-flex rounded-md border border-zinc-200 bg-white p-0.5">
+          {filterTabs.map((tab) => (
+            <Link
+              key={tab.value}
+              href={buildFilterHref(tab.value)}
+              className={`rounded px-3 py-1.5 text-xs font-medium ${
+                legacyFilter === tab.value
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-600 hover:text-zinc-900"
+              }`}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {students.length === 0 ? (
@@ -123,6 +160,11 @@ export default async function StudentsPage({
                           >
                             {student.legal_first_name} {student.legal_last_name}
                           </Link>
+                          {student.is_legacy && (
+                            <span className="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-800">
+                              Legacy Student
+                            </span>
+                          )}
                           {student.archived_at && (
                             <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
                               {student.archive_reason

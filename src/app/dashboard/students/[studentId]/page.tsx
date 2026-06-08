@@ -144,6 +144,8 @@ export default async function StudentDetailPage({
   const isViewer = role === "viewer";
   const isSuperAdminUser = isSuperAdmin(role);
   const isStudentArchived = !!(student as Record<string, unknown>).archived_at;
+  // ACADEMIC-02: legacy/historical imported student marker.
+  const isLegacyStudent = !!(student as Record<string, unknown>).is_legacy;
 
   const archiveInfo = isAdmin
     ? await getArchiveInfo("students", studentId)
@@ -358,6 +360,11 @@ export default async function StudentDetailPage({
                   : ""}
                 {student.legal_last_name}
               </h1>
+              {isLegacyStudent && (
+                <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-violet-800">
+                  Legacy Student
+                </span>
+              )}
               {isStudentArchived && (
                 <span className="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-800">
                   {(student as Record<string, unknown>).archive_reason
@@ -383,6 +390,19 @@ export default async function StudentDetailPage({
           )}
         </div>
       </div>
+
+      {isLegacyStudent && (
+        <div className="mb-6 rounded-md border border-violet-200 bg-violet-50 px-4 py-3">
+          <p className="text-sm font-medium text-violet-800">
+            Legacy Student - imported historical record
+          </p>
+          <p className="mt-1 text-xs text-violet-700">
+            This record was imported from old master records. It is not required
+            to pass through the current sales intake, contract, checklist, fee, or
+            document workflow.
+          </p>
+        </div>
+      )}
 
       {isStudentArchived && (
         <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 px-4 py-3">
