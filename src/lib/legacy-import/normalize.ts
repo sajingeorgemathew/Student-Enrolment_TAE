@@ -51,15 +51,24 @@ export function normalizeStudentNumberForImport(
   // Remove internal spaces so "PSW 125315" collapses to "PSW125315".
   working = working.replace(/\s+/g, "");
 
-  // The canonical id is always PSW + the digits found in the value, regardless
-  // of whether the source already had a PSW prefix or not.
-  const digits = working.replace(/\D/g, "");
-  if (!digits) {
-    warnings.push("Student number has no digits");
+  // The canonical id is PSW + digits, but only when the source value actually
+  // looks like a student id: an optional PSW prefix (with optional separator
+  // punctuation) followed by digits only. Free text such as a batch banner row
+  // ("PSW Evening Batch - 12th May 2025") must not be turned into a fake id
+  // from whatever digits it happens to contain.
+  let body = working;
+  if (body.startsWith("PSW")) body = body.slice(3);
+  body = body.replace(/^[-.#:]+/, "");
+  if (!/^\d+$/.test(body)) {
+    warnings.push(
+      body
+        ? "Value does not look like a student number"
+        : "Student number has no digits"
+    );
     return { raw, normalized: null, suffix, warnings };
   }
 
-  return { raw, normalized: `PSW${digits}`, suffix, warnings };
+  return { raw, normalized: `PSW${body}`, suffix, warnings };
 }
 
 // Normalize a name for comparison and duplicate warnings.
