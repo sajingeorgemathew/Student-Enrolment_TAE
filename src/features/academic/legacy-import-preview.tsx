@@ -8,15 +8,24 @@ import type {
   LegacyImportPreviewState,
   PreviewRow,
   PreviewStatus,
+  WarningLevel,
 } from "@/lib/legacy-import/types";
 
 // ACADEMIC-03: admin-only legacy student import preview UI. Uploads an .xlsx
 // file to the preview server action and renders summary counts plus a filtered
 // table. This is preview only - nothing is written to the database.
+// ACADEMIC-03-FIX: every row now shows a warning level, a human-readable
+// reason, and detail messages so admin can tell why each row was flagged.
 
 const initialState: LegacyImportPreviewState = { ok: false };
 
-type FilterValue = "all" | "matched" | "new" | "warnings" | "invalid";
+type FilterValue =
+  | "all"
+  | "clean_new"
+  | "matched"
+  | "review"
+  | "blocking"
+  | "skipped";
 
 const STATUS_LABELS: Record<PreviewStatus, string> = {
   matched_student_number: "Matched (student number)",
@@ -38,6 +47,20 @@ const STATUS_COLORS: Record<PreviewStatus, string> = {
   duplicate_in_excel: "bg-orange-100 text-orange-800",
 };
 
+const LEVEL_LABELS: Record<WarningLevel, string> = {
+  none: "None",
+  info: "Info",
+  review: "Review",
+  blocking: "Blocking",
+};
+
+const LEVEL_COLORS: Record<WarningLevel, string> = {
+  none: "bg-zinc-100 text-zinc-500",
+  info: "bg-sky-100 text-sky-800",
+  review: "bg-amber-100 text-amber-800",
+  blocking: "bg-red-100 text-red-800",
+};
+
 const MATCHED_STATUSES: PreviewStatus[] = [
   "matched_student_number",
   "matched_email",
@@ -48,19 +71,21 @@ function rowMatchesFilter(row: PreviewRow, filter: FilterValue): boolean {
   switch (filter) {
     case "all":
       return true;
-    case "matched":
-      return MATCHED_STATUSES.includes(row.status);
-    case "new":
-      return row.status === "new_candidate";
-    case "warnings":
+    case "clean_new":
       return (
-        row.status === "duplicate_in_excel" ||
-        (row.warnings.length > 0 &&
-          row.status !== "skipped_row" &&
-          row.status !== "invalid_row")
+        row.matchStatus === "new_candidate" &&
+        (row.warningLevel === "none" || row.warningLevel === "info")
       );
-    case "invalid":
-      return row.status === "invalid_row" || row.status === "skipped_row";
+    case "matched":
+      return MATCHED_STATUSES.includes(row.matchStatus);
+    case "review":
+      return row.warningLevel === "review";
+    case "blocking":
+      return (
+        row.warningLevel === "blocking" || row.matchStatus === "invalid_row"
+      );
+    case "skipped":
+      return row.matchStatus === "skipped_row";
     default:
       return true;
   }
@@ -89,10 +114,11 @@ export function LegacyImportPreview() {
 
   const filterTabs: { value: FilterValue; label: string }[] = [
     { value: "all", label: "All" },
+    { value: "clean_new", label: "Clean new" },
     { value: "matched", label: "Matched" },
-    { value: "new", label: "New candidates" },
-    { value: "warnings", label: "Warnings" },
-    { value: "invalid", label: "Invalid / skipped" },
+    { value: "review", label: "Review needed" },
+    { value: "blocking", label: "Blocking issues" },
+    { value: "skipped", label: "Skipped" },
   ];
 
   return (
@@ -148,7 +174,7 @@ export function LegacyImportPreview() {
                 Preview for {state.fileName}
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
               <SummaryCard
                 label="Sheets scanned"
                 value={state.summary.sheetsScanned}
@@ -158,16 +184,20 @@ export function LegacyImportPreview() {
                 value={state.summary.rowsParsed}
               />
               <SummaryCard
+                label="Clean new candidates"
+                value={state.summary.cleanNewCandidates}
+              />
+              <SummaryCard
                 label="Matched existing"
                 value={state.summary.matchedExisting}
               />
               <SummaryCard
-                label="New candidates"
-                value={state.summary.newCandidates}
+                label="Review needed"
+                value={state.summary.reviewNeeded}
               />
               <SummaryCard
-                label="Rows with warnings"
-                value={state.summary.possibleDuplicates}
+                label="Blocking issues"
+                value={state.summary.blockingIssues}
               />
               <SummaryCard
                 label="Skipped rows"
@@ -230,7 +260,9 @@ export function LegacyImportPreview() {
                           "Phone",
                           "Proposed batch",
                           "Status",
-                          "Warnings / reason",
+                          "Level",
+                          "Reason",
+                          "Details",
                           "Matched student",
                         ].map((heading) => (
                           <th
@@ -275,17 +307,33 @@ export function LegacyImportPreview() {
                           <td className="px-3 py-2">
                             <span
                               className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
-                                STATUS_COLORS[row.status]
+                                STATUS_COLORS[row.matchStatus]
                               }`}
                             >
-                              {STATUS_LABELS[row.status]}
+                              {STATUS_LABELS[row.matchStatus]}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-xs text-zinc-500">
-                            {row.warnings.length > 0 ? (
+                          <td className="px-3 py-2">
+                            {row.warningLevel === "none" ? (
+                              <span className="text-xs text-zinc-400">--</span>
+                            ) : (
+                              <span
+                                className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  LEVEL_COLORS[row.warningLevel]
+                                }`}
+                              >
+                                {LEVEL_LABELS[row.warningLevel]}
+                              </span>
+                            )}
+                          </td>
+                          <td className="min-w-[14rem] px-3 py-2 text-xs text-zinc-700">
+                            {row.reason}
+                          </td>
+                          <td className="min-w-[14rem] px-3 py-2 text-xs text-zinc-500">
+                            {row.warningMessages.length > 0 ? (
                               <ul className="list-disc space-y-0.5 pl-4">
-                                {row.warnings.map((w, i) => (
-                                  <li key={i}>{w}</li>
+                                {row.warningMessages.map((message, i) => (
+                                  <li key={i}>{message}</li>
                                 ))}
                               </ul>
                             ) : (

@@ -9,7 +9,12 @@ import {
   normalizeEmailForImport,
   looksLikeEmail,
 } from "./normalize";
-import type { ParsedLegacyRow, ParseResult, SkippedSheet } from "./types";
+import type {
+  ParsedLegacyRow,
+  ParseResult,
+  RowWarning,
+  SkippedSheet,
+} from "./types";
 
 // Canonical field names mapped from normalized header text. Headers are matched
 // by name, never by column letter, because sheets differ in layout.
@@ -67,9 +72,18 @@ const LEGEND_MARKERS = [
   "middle name",
   "student id",
   "graduated",
+  // Merged-cell batch title rows repeated inside sheets, for example
+  // "PSW Evening Batch - 12th May 2025".
+  "evening batch",
 ];
 
 const MAX_HEADER_SCAN_ROWS = 6;
+
+// Keep raw cell text readable when echoed inside a warning message. Some cells
+// contain long junk (for example a row of dots used as a visual divider).
+function truncateForMessage(value: string, max = 40): string {
+  return value.length > max ? `${value.slice(0, max)}...` : value;
+}
 
 function normalizeHeader(value: string): string {
   return value
@@ -247,15 +261,38 @@ export async function parseLegacyWorkbook(
 
       // Intrinsic warnings only. Classification-dependent warnings (such as
       // "missing student number") are added by the matcher.
-      const warnings: string[] = [];
+      const warnings: RowWarning[] = [];
       if (studentNumber.suffix) {
-        warnings.push(`Student number contains suffix: ${studentNumber.suffix}`);
+        warnings.push({
+          type: "student_number_suffix",
+          level: "review",
+          message: `Student number contains suffix: ${studentNumber.suffix}`,
+        });
+      }
+      if (rawStudentId && !studentNumber.normalized) {
+        warnings.push({
+          type: "invalid_student_number",
+          level: "review",
+          message: `Student ID does not look like a PSW number: ${truncateForMessage(
+            rawStudentId
+          )}`,
+        });
       }
       if (rawEmailValue && !looksLikeEmail(normalizedEmail)) {
-        warnings.push("Email format looks invalid");
+        warnings.push({
+          type: "invalid_email_format",
+          level: "review",
+          message: `Email format looks invalid: ${truncateForMessage(
+            rawEmailValue
+          )}`,
+        });
       }
       if (isElce) {
-        warnings.push("ELCE sheet - separate program, verify before import");
+        warnings.push({
+          type: "special_sheet_review",
+          level: "review",
+          message: "ELCE sheet requires separate program review",
+        });
       }
 
       rows.push({
