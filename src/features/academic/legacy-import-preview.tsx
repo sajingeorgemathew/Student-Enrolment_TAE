@@ -25,7 +25,9 @@ type FilterValue =
   | "matched"
   | "review"
   | "blocking"
-  | "skipped";
+  | "skipped"
+  | "series_900"
+  | "elce";
 
 const STATUS_LABELS: Record<PreviewStatus, string> = {
   matched_student_number: "Matched (student number)",
@@ -35,6 +37,8 @@ const STATUS_LABELS: Record<PreviewStatus, string> = {
   invalid_row: "Invalid",
   skipped_row: "Skipped",
   duplicate_in_excel: "Duplicate in file",
+  skipped_reenrolment_duplicate: "900 Series - skipped",
+  separate_program_review: "ELCE - separate program",
 };
 
 const STATUS_COLORS: Record<PreviewStatus, string> = {
@@ -45,6 +49,8 @@ const STATUS_COLORS: Record<PreviewStatus, string> = {
   invalid_row: "bg-red-100 text-red-800",
   skipped_row: "bg-zinc-100 text-zinc-600",
   duplicate_in_excel: "bg-orange-100 text-orange-800",
+  skipped_reenrolment_duplicate: "bg-purple-100 text-purple-800",
+  separate_program_review: "bg-indigo-100 text-indigo-800",
 };
 
 const LEVEL_LABELS: Record<WarningLevel, string> = {
@@ -79,13 +85,23 @@ function rowMatchesFilter(row: PreviewRow, filter: FilterValue): boolean {
     case "matched":
       return MATCHED_STATUSES.includes(row.matchStatus);
     case "review":
-      return row.warningLevel === "review";
+      // 900 Series and ELCE rows carry review-level warnings but have their
+      // own filters, so they are not repeated under Review needed.
+      return (
+        row.warningLevel === "review" &&
+        row.matchStatus !== "skipped_reenrolment_duplicate" &&
+        row.matchStatus !== "separate_program_review"
+      );
     case "blocking":
       return (
         row.warningLevel === "blocking" || row.matchStatus === "invalid_row"
       );
     case "skipped":
       return row.matchStatus === "skipped_row";
+    case "series_900":
+      return row.matchStatus === "skipped_reenrolment_duplicate";
+    case "elce":
+      return row.matchStatus === "separate_program_review";
     default:
       return true;
   }
@@ -119,6 +135,8 @@ export function LegacyImportPreview() {
     { value: "review", label: "Review needed" },
     { value: "blocking", label: "Blocking issues" },
     { value: "skipped", label: "Skipped" },
+    { value: "series_900", label: "900 Series" },
+    { value: "elce", label: "ELCE" },
   ];
 
   return (
@@ -174,7 +192,7 @@ export function LegacyImportPreview() {
                 Preview for {state.fileName}
               </h2>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <SummaryCard
                 label="Sheets scanned"
                 value={state.summary.sheetsScanned}
@@ -202,6 +220,14 @@ export function LegacyImportPreview() {
               <SummaryCard
                 label="Skipped rows"
                 value={state.summary.skippedRows}
+              />
+              <SummaryCard
+                label="900 Series skipped"
+                value={state.summary.series900Skipped}
+              />
+              <SummaryCard
+                label="ELCE separate program"
+                value={state.summary.elceSeparateProgram}
               />
             </div>
           </div>

@@ -2,11 +2,16 @@
 // preview. These are pure functions (no server/database dependencies) so they
 // can be unit reasoned about and reused by both the parser and the matcher.
 
+// ACADEMIC-03-RULES: student numbers are program-specific. PSW monthly sheets
+// normalize with a PSW prefix and the ELCE sheet normalizes with an ELCE
+// prefix, so ELCE 12101 becomes ELCE12101 and never PSW12101.
+export type ProgramPrefix = "PSW" | "ELCE";
+
 export interface NormalizedStudentNumber {
   // The original trimmed value as it appeared in the workbook.
   raw: string;
-  // The canonical PSW-prefixed value used for matching, or null when no digits
-  // could be found.
+  // The canonical program-prefixed value used for matching, or null when no
+  // digits could be found.
   normalized: string | null;
   // A clearly separated suffix such as "drop" from "125301/drop". Kept only as
   // context, never folded into the normalized id.
@@ -15,16 +20,25 @@ export interface NormalizedStudentNumber {
 }
 
 // Normalize a raw Student ID value for matching against database student
-// numbers, which are stored PSW-prefixed (for example PSW125315).
+// numbers, which are stored program-prefixed (for example PSW125315).
 //
-// Rules:
+// The default prefix comes from the sheet's program. An explicit PSW or ELCE
+// prefix written in the cell always wins over the sheet default.
+//
+// Rules with defaultPrefix "PSW":
 //   125315       -> PSW125315
 //   PSW125315    -> PSW125315
 //   PSW 125315   -> PSW125315
 //   psw125315    -> PSW125315
 //   125301/drop  -> PSW125301 with warning "Student number contains suffix: drop"
+//
+// Rules with defaultPrefix "ELCE":
+//   12101        -> ELCE12101
+//   ELCE12101    -> ELCE12101
+//   ELCE 12101   -> ELCE12101
 export function normalizeStudentNumberForImport(
-  rawValue: unknown
+  rawValue: unknown,
+  defaultPrefix: ProgramPrefix = "PSW"
 ): NormalizedStudentNumber {
   const warnings: string[] = [];
   const raw = rawValue == null ? "" : String(rawValue).trim();
@@ -51,13 +65,20 @@ export function normalizeStudentNumberForImport(
   // Remove internal spaces so "PSW 125315" collapses to "PSW125315".
   working = working.replace(/\s+/g, "");
 
-  // The canonical id is PSW + digits, but only when the source value actually
-  // looks like a student id: an optional PSW prefix (with optional separator
-  // punctuation) followed by digits only. Free text such as a batch banner row
-  // ("PSW Evening Batch - 12th May 2025") must not be turned into a fake id
-  // from whatever digits it happens to contain.
+  // The canonical id is prefix + digits, but only when the source value
+  // actually looks like a student id: an optional program prefix (with
+  // optional separator punctuation) followed by digits only. Free text such as
+  // a batch banner row ("PSW Evening Batch - 12th May 2025") must not be
+  // turned into a fake id from whatever digits it happens to contain.
   let body = working;
-  if (body.startsWith("PSW")) body = body.slice(3);
+  let prefix: ProgramPrefix = defaultPrefix;
+  if (body.startsWith("PSW")) {
+    prefix = "PSW";
+    body = body.slice(3);
+  } else if (body.startsWith("ELCE")) {
+    prefix = "ELCE";
+    body = body.slice(4);
+  }
   body = body.replace(/^[-.#:]+/, "");
   if (!/^\d+$/.test(body)) {
     warnings.push(
@@ -68,7 +89,15 @@ export function normalizeStudentNumberForImport(
     return { raw, normalized: null, suffix, warnings };
   }
 
-  return { raw, normalized: `PSW${body}`, suffix, warnings };
+  return { raw, normalized: `${prefix}${body}`, suffix, warnings };
+}
+
+// ACADEMIC-03-RULES: 900 Series ids mark re-enrolled/reappearing students.
+// A row is 900 Series when the digits of its normalized id start with 900.
+export function is900SeriesStudentNumber(normalized: string | null): boolean {
+  if (!normalized) return false;
+  const digits = normalized.replace(/^[A-Z]+/, "");
+  return digits.startsWith("900");
 }
 
 // Normalize a name for comparison and duplicate warnings.
