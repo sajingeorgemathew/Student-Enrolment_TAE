@@ -8,6 +8,8 @@ import {
   normalizeNameForImport,
   normalizeEmailForImport,
   looksLikeEmail,
+  is900SeriesStudentNumber,
+  type ProgramPrefix,
 } from "./normalize";
 import type {
   ParsedLegacyRow,
@@ -203,7 +205,12 @@ export async function parseLegacyWorkbook(
     }
 
     sheetsScanned.push(ws.name);
+    // ACADEMIC-03-RULES: normalization is program/sheet aware. The ELCE sheet
+    // is a separate program, so its ids normalize with an ELCE prefix; all
+    // PSW monthly sheets (and any 900 Series sheet) normalize as PSW.
     const isElce = /elce/i.test(ws.name);
+    const is900Sheet = /900/.test(ws.name);
+    const programPrefix: ProgramPrefix = isElce ? "ELCE" : "PSW";
 
     for (let r = headerRowIndex + 1; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
@@ -231,7 +238,10 @@ export async function parseLegacyWorkbook(
       const address = (fields.address ?? "").trim() || null;
       const statusText = (fields.status ?? "").trim() || null;
 
-      const studentNumber = normalizeStudentNumberForImport(rawStudentId);
+      const studentNumber = normalizeStudentNumberForImport(
+        rawStudentId,
+        programPrefix
+      );
       const normalizedEmail = normalizeEmailForImport(rawEmailValue);
 
       const legalFullName = [legalFirstName, legalMiddleName, legalLastName]
@@ -273,7 +283,7 @@ export async function parseLegacyWorkbook(
         warnings.push({
           type: "invalid_student_number",
           level: "review",
-          message: `Student ID does not look like a PSW number: ${truncateForMessage(
+          message: `Student ID does not look like a ${programPrefix} number: ${truncateForMessage(
             rawStudentId
           )}`,
         });
@@ -291,7 +301,22 @@ export async function parseLegacyWorkbook(
         warnings.push({
           type: "special_sheet_review",
           level: "review",
-          message: "ELCE sheet requires separate program review",
+          message: "ELCE row - separate program import required",
+        });
+      }
+
+      // ACADEMIC-03-RULES: 900 Series rows are re-enrolled/reappearing
+      // students. The normalized PSW number is kept for reference, but the
+      // row must never be imported as a new legacy student.
+      const is900Series =
+        !isElce &&
+        (is900Sheet || is900SeriesStudentNumber(studentNumber.normalized));
+      if (is900Series) {
+        warnings.push({
+          type: "reenrolment_900_series",
+          level: "review",
+          message:
+            "900 Series re-enrolment row - original batch record should be kept",
         });
       }
 
@@ -313,6 +338,7 @@ export async function parseLegacyWorkbook(
         statusText,
         address,
         isElce,
+        is900Series,
         looksLikeLegend,
         warnings,
       });

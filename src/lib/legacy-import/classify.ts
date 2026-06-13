@@ -126,6 +126,84 @@ export function classifyLegacyRows(
       continue;
     }
 
+    // ACADEMIC-03-RULES: 900 Series rows are re-enrolled/reappearing
+    // students. They are skipped, never counted as clean new candidates, and
+    // the original student/batch record is kept. The normalized number is
+    // still looked up so the admin can see which existing record to keep.
+    if (row.is900Series) {
+      const matched900 = row.normalizedStudentNumber
+        ? byStudentNumber.get(row.normalizedStudentNumber) ?? null
+        : null;
+      const reason =
+        "900 Series re-enrolment row - original batch record should be kept";
+      rows.push({
+        sheet: row.sheet,
+        rowNumber: row.rowNumber,
+        rawStudentId: row.rawStudentId,
+        normalizedStudentNumber: row.normalizedStudentNumber,
+        legalFullName: row.legalFullName,
+        email: looksLikeEmail(row.normalizedEmail) ? row.normalizedEmail : null,
+        phone: row.phone,
+        proposedBatch: row.sheet,
+        matchStatus: "skipped_reenrolment_duplicate",
+        warningLevel: highestLevel(warnings),
+        warningTypes: warnings.map((w) => w.type),
+        warningMessages: warnings.map((w) => w.message),
+        reason,
+        skipReason: reason,
+        matchReason: matched900
+          ? "Existing student found by student number - original record kept"
+          : null,
+        matchedStudentId: matched900?.id ?? null,
+        matchedStudentName: matched900?.legal_full_name ?? null,
+        matchedStudentNumber: matched900?.student_number ?? null,
+      });
+      continue;
+    }
+
+    // ACADEMIC-03-RULES: ELCE rows belong to a separate program. They are
+    // never mixed into PSW monthly batches or counted as PSW candidates.
+    // Their ids are already ELCE-normalized by the parser, so an existing
+    // ELCE student can still be linked for reference.
+    if (row.isElce) {
+      let matchedElce: ExistingStudent | null = null;
+      let elceMatchReason: string | null = null;
+      if (
+        row.normalizedStudentNumber &&
+        byStudentNumber.has(row.normalizedStudentNumber)
+      ) {
+        matchedElce = byStudentNumber.get(row.normalizedStudentNumber) ?? null;
+        elceMatchReason = "Matched existing student by student number";
+      } else if (
+        looksLikeEmail(row.normalizedEmail) &&
+        byEmail.has(row.normalizedEmail!)
+      ) {
+        matchedElce = byEmail.get(row.normalizedEmail!) ?? null;
+        elceMatchReason = "Matched existing student by email";
+      }
+      rows.push({
+        sheet: row.sheet,
+        rowNumber: row.rowNumber,
+        rawStudentId: row.rawStudentId,
+        normalizedStudentNumber: row.normalizedStudentNumber,
+        legalFullName: row.legalFullName,
+        email: looksLikeEmail(row.normalizedEmail) ? row.normalizedEmail : null,
+        phone: row.phone,
+        proposedBatch: row.sheet,
+        matchStatus: "separate_program_review",
+        warningLevel: highestLevel(warnings),
+        warningTypes: warnings.map((w) => w.type),
+        warningMessages: warnings.map((w) => w.message),
+        reason: "ELCE row - separate program import required",
+        skipReason: null,
+        matchReason: elceMatchReason,
+        matchedStudentId: matchedElce?.id ?? null,
+        matchedStudentName: matchedElce?.legal_full_name ?? null,
+        matchedStudentNumber: matchedElce?.student_number ?? null,
+      });
+      continue;
+    }
+
     // Blocking identity problems. A row that cannot be matched or safely
     // imported is invalid, with a blocking warning explaining exactly why.
     if (!hasNumber && !hasUsableEmail) {
@@ -342,11 +420,24 @@ export function classifyLegacyRows(
     ).length,
     matchedExisting: rows.filter((r) => matchedStatuses.includes(r.matchStatus))
       .length,
-    reviewNeeded: rows.filter((r) => r.warningLevel === "review").length,
+    // 900 Series and ELCE rows carry review-level warnings but have their own
+    // counts below, so they are excluded here to avoid double counting.
+    reviewNeeded: rows.filter(
+      (r) =>
+        r.warningLevel === "review" &&
+        r.matchStatus !== "skipped_reenrolment_duplicate" &&
+        r.matchStatus !== "separate_program_review"
+    ).length,
     blockingIssues: rows.filter(
       (r) => r.warningLevel === "blocking" || r.matchStatus === "invalid_row"
     ).length,
     skippedRows: rows.filter((r) => r.matchStatus === "skipped_row").length,
+    series900Skipped: rows.filter(
+      (r) => r.matchStatus === "skipped_reenrolment_duplicate"
+    ).length,
+    elceSeparateProgram: rows.filter(
+      (r) => r.matchStatus === "separate_program_review"
+    ).length,
   };
 
   return { rows, summary };

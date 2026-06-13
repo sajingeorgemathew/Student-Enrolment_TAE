@@ -27,6 +27,7 @@ export type WarningType =
   | "missing_phone"
   | "invalid_email_format"
   | "special_sheet_review"
+  | "reenrolment_900_series"
   | "legend_or_summary_row"
   | "blank_row";
 
@@ -58,6 +59,10 @@ export interface ParsedLegacyRow {
   statusText: string | null;
   address: string | null;
   isElce: boolean;
+  // ACADEMIC-03-RULES: true when the row is a 900 Series re-enrolment row
+  // (900-prefixed id digits or a 900 Series sheet). These are skipped, never
+  // imported as new legacy students.
+  is900Series: boolean;
   looksLikeLegend: boolean;
   warnings: RowWarning[];
 }
@@ -80,7 +85,13 @@ export type PreviewStatus =
   | "new_candidate"
   | "invalid_row"
   | "skipped_row"
-  | "duplicate_in_excel";
+  | "duplicate_in_excel"
+  // ACADEMIC-03-RULES: 900 Series re-enrolment row - skipped, the original
+  // student/batch record should be kept.
+  | "skipped_reenrolment_duplicate"
+  // ACADEMIC-03-RULES: ELCE row - belongs to a separate program and needs its
+  // own import, never mixed into PSW monthly batches.
+  | "separate_program_review";
 
 // A row as shown in the preview table, after matching against the database.
 export interface PreviewRow {
@@ -117,6 +128,10 @@ export interface PreviewSummary {
   reviewNeeded: number;
   blockingIssues: number;
   skippedRows: number;
+  // ACADEMIC-03-RULES: 900 Series re-enrolment rows skipped (not importable).
+  series900Skipped: number;
+  // ACADEMIC-03-RULES: ELCE rows held for a separate program import.
+  elceSeparateProgram: number;
 }
 
 export interface LegacyImportPreviewState {
