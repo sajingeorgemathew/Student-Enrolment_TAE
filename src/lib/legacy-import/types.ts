@@ -156,3 +156,35 @@ export interface LegacyImportPreviewState {
   sheetsSkipped?: SkippedSheet[];
   rows?: PreviewRow[];
 }
+
+// ACADEMIC-04: outcome of a single selected row during import confirmation.
+// - created: a new legacy student record was inserted.
+// - skipped: the row was not imported for a safe, expected reason (for example
+//   it is no longer importable, or a duplicate student number already exists).
+// - failed: an unexpected error stopped the insert (for example a database
+//   error or missing required name fields).
+export type ImportRowOutcome = "created" | "skipped" | "failed";
+
+export interface ImportRowResult {
+  key: string;
+  sheet: string;
+  rowNumber: number;
+  studentNumber: string | null;
+  legalFullName: string;
+  outcome: ImportRowOutcome;
+  reason: string;
+  // The created student id, when outcome is "created", so the UI can link to
+  // the new record.
+  studentId: string | null;
+}
+
+// ACADEMIC-04: result state returned by the import confirmation server action.
+export interface LegacyImportConfirmState {
+  ok: boolean;
+  error?: string;
+  fileName?: string;
+  created: number;
+  skipped: number;
+  failed: number;
+  results: ImportRowResult[];
+}

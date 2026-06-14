@@ -5,7 +5,10 @@ import { LegacyImportPreview } from "@/features/academic/legacy-import-preview";
 
 // ACADEMIC-03: admin-only legacy student Excel import preview page under
 // Admin Tools > Academic Records. Sales and viewer are blocked here, including
-// by direct URL. This page previews only and never writes to the database.
+// by direct URL.
+// ACADEMIC-04: the page now also supports confirming an import, which creates
+// legacy student records for selected, approved rows only. Creation is gated to
+// admin/super_admin in the server action as well as on this page.
 
 export default async function LegacyImportPage() {
   const profile = await getUserProfile();
@@ -46,8 +49,9 @@ export default async function LegacyImportPage() {
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
           Preview legacy student rows from an Excel master list and see how they
-          match existing students. This is a preview only - no records are
-          created, updated, or deleted.
+          match existing students, then select approved rows to create legacy
+          student records. Only clean new candidates and reviewed importable
+          rows can be imported.
         </p>
       </div>
 
