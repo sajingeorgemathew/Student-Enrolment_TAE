@@ -34,6 +34,8 @@ export async function getApplicationsForChecklists() {
       )
     `
     )
+    // ACADEMIC-05: exclude historical legacy linkage applications.
+    .eq("is_legacy", false)
     .order("created_at", { ascending: false });
 
   return applications ?? [];

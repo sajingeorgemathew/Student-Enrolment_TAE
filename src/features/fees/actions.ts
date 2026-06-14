@@ -27,6 +27,8 @@ export async function getApplicationsForFees() {
       fee_schedules (id, status, total_fees, created_at)
     `
     )
+    // ACADEMIC-05: exclude historical legacy linkage applications.
+    .eq("is_legacy", false)
     .order("created_at", { ascending: false });
 
   return applications ?? [];

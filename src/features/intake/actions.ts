@@ -223,6 +223,9 @@ export async function getIntakes() {
       batches (id, batch_name)
     `
     )
+    // ACADEMIC-05: legacy linkage applications are historical and must not enter
+    // the active intake queue.
+    .eq("is_legacy", false)
     .order("created_at", { ascending: false });
 
   return data ?? [];
