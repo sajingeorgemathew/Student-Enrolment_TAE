@@ -28,6 +28,8 @@ export type WarningType =
   | "invalid_email_format"
   | "special_sheet_review"
   | "reenrolment_900_series"
+  // ACADEMIC-03-CORRECTIONS: an admin-reviewed decision was applied to this row.
+  | "reviewed_decision"
   | "legend_or_summary_row"
   | "blank_row";
 
@@ -91,7 +93,13 @@ export type PreviewStatus =
   | "skipped_reenrolment_duplicate"
   // ACADEMIC-03-RULES: ELCE row - belongs to a separate program and needs its
   // own import, never mixed into PSW monthly batches.
-  | "separate_program_review";
+  | "separate_program_review"
+  // ACADEMIC-03-CORRECTIONS: admin reviewed this row and confirmed it is correct
+  // (or corrected its student number). It is importable and no longer blocking.
+  | "reviewed_importable"
+  // ACADEMIC-03-CORRECTIONS: admin reviewed this row and excluded it from import
+  // (for example a student who dropped off).
+  | "reviewed_excluded";
 
 // A row as shown in the preview table, after matching against the database.
 export interface PreviewRow {
@@ -132,6 +140,11 @@ export interface PreviewSummary {
   series900Skipped: number;
   // ACADEMIC-03-RULES: ELCE rows held for a separate program import.
   elceSeparateProgram: number;
+  // ACADEMIC-03-CORRECTIONS: rows an admin reviewed and confirmed importable
+  // (including corrected student numbers).
+  reviewedImportable: number;
+  // ACADEMIC-03-CORRECTIONS: rows an admin reviewed and excluded from import.
+  reviewedExcluded: number;
 }
 
 export interface LegacyImportPreviewState {

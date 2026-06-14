@@ -10,6 +10,7 @@ import {
   normalizeEmailForImport,
   looksLikeEmail,
 } from "./normalize";
+import { findReviewedDecision } from "./reviewed-decisions";
 import type {
   ParsedLegacyRow,
   PreviewRow,
@@ -90,7 +91,48 @@ export function classifyLegacyRows(
     let skipReason: string | null = null;
     let matchReason: string | null = null;
 
-    const hasNumber = !!row.normalizedStudentNumber;
+    // ACADEMIC-03-CORRECTIONS: an admin reviewed specific edge-case rows and
+    // confirmed an explicit decision (keep / correct / exclude). The decision is
+    // matched by sheet + raw id + normalized name, so it applies to one row only.
+    const decision = findReviewedDecision(row);
+
+    // Reviewed exclude: the student dropped off. The row is removed from import
+    // and shown with a clear reason - it is not a layout/legend skip.
+    if (decision?.kind === "exclude") {
+      rows.push({
+        sheet: row.sheet,
+        rowNumber: row.rowNumber,
+        rawStudentId: row.rawStudentId,
+        normalizedStudentNumber: row.normalizedStudentNumber,
+        legalFullName: row.legalFullName,
+        email: looksLikeEmail(row.normalizedEmail) ? row.normalizedEmail : null,
+        phone: row.phone,
+        proposedBatch: row.sheet,
+        matchStatus: "reviewed_excluded",
+        warningLevel: "info",
+        warningTypes: ["reviewed_decision"],
+        warningMessages: [decision.reason],
+        reason: decision.reason,
+        skipReason: decision.reason,
+        matchReason: null,
+        matchedStudentId: null,
+        matchedStudentName: null,
+        matchedStudentNumber: null,
+      });
+      continue;
+    }
+
+    // Reviewed correct: keep the row but import it under the corrected student
+    // number. The corrected value is used for matching, display, and any future
+    // import; the raw id is still shown so the correction is visible.
+    const correctedStudentNumber =
+      decision?.kind === "correct"
+        ? decision.correctedStudentNumber ?? null
+        : null;
+    const effectiveStudentNumber =
+      correctedStudentNumber ?? row.normalizedStudentNumber;
+
+    const hasNumber = !!effectiveStudentNumber;
     const hasUsableEmail = looksLikeEmail(row.normalizedEmail);
     const hasName = !!row.normalizedName;
 
@@ -257,10 +299,10 @@ export function classifyLegacyRows(
 
       // Match priority: student number, then email, then name.
       if (
-        row.normalizedStudentNumber &&
-        byStudentNumber.has(row.normalizedStudentNumber)
+        effectiveStudentNumber &&
+        byStudentNumber.has(effectiveStudentNumber)
       ) {
-        matched = byStudentNumber.get(row.normalizedStudentNumber) ?? null;
+        matched = byStudentNumber.get(effectiveStudentNumber) ?? null;
         matchStatus = "matched_student_number";
         matchReason = "Matched existing student by student number";
       } else if (hasUsableEmail && byEmail.has(row.normalizedEmail!)) {
@@ -321,8 +363,8 @@ export function classifyLegacyRows(
       // Duplicate-within-workbook detection. This overrides the status so the
       // row is clearly surfaced, while keeping any matched-student context.
       let duplicate = false;
-      if (row.normalizedStudentNumber) {
-        const prior = seenNumbers.get(row.normalizedStudentNumber);
+      if (effectiveStudentNumber) {
+        const prior = seenNumbers.get(effectiveStudentNumber);
         if (prior) {
           duplicate = true;
           warnings.push({
@@ -332,7 +374,7 @@ export function classifyLegacyRows(
           });
         } else {
           seenNumbers.set(
-            row.normalizedStudentNumber,
+            effectiveStudentNumber,
             `${row.sheet} row ${row.rowNumber}`
           );
         }
@@ -358,7 +400,7 @@ export function classifyLegacyRows(
       }
     }
 
-    const warningLevel = highestLevel(warnings);
+    const baseLevel = highestLevel(warnings);
 
     // One human-readable line for the Reason column. Priority: blocking
     // problem, in-file duplicate, match explanation, then the most serious
@@ -376,17 +418,35 @@ export function classifyLegacyRows(
         )?.message ?? "Duplicate row in workbook";
     } else if (matchReason) {
       reason = matchReason;
-    } else if (warningLevel === "review") {
+    } else if (baseLevel === "review") {
       reason = firstMessageAtLevel(warnings, "review") ?? "Needs review";
     } else {
       reason = "Clean new candidate";
+    }
+
+    // ACADEMIC-03-CORRECTIONS: a reviewed keep/correct decision makes the row
+    // importable regardless of duplicate or name-match warnings. The decision
+    // reason replaces the computed reason, the status becomes reviewed_importable
+    // (still linked to any matched student), and the level drops to info so the
+    // row no longer reads as blocking or review-needed. The original warning
+    // details are kept for context.
+    let warningLevel = baseLevel;
+    if (decision) {
+      matchStatus = "reviewed_importable";
+      reason = decision.reason;
+      warnings.push({
+        type: "reviewed_decision",
+        level: "info",
+        message: decision.reason,
+      });
+      warningLevel = "info";
     }
 
     rows.push({
       sheet: row.sheet,
       rowNumber: row.rowNumber,
       rawStudentId: row.rawStudentId,
-      normalizedStudentNumber: row.normalizedStudentNumber,
+      normalizedStudentNumber: effectiveStudentNumber,
       legalFullName: row.legalFullName,
       email: hasUsableEmail ? row.normalizedEmail : null,
       phone: row.phone,
@@ -437,6 +497,12 @@ export function classifyLegacyRows(
     ).length,
     elceSeparateProgram: rows.filter(
       (r) => r.matchStatus === "separate_program_review"
+    ).length,
+    reviewedImportable: rows.filter(
+      (r) => r.matchStatus === "reviewed_importable"
+    ).length,
+    reviewedExcluded: rows.filter(
+      (r) => r.matchStatus === "reviewed_excluded"
     ).length,
   };
 
