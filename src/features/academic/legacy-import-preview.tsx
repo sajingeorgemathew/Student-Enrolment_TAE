@@ -27,7 +27,8 @@ type FilterValue =
   | "blocking"
   | "skipped"
   | "series_900"
-  | "elce";
+  | "elce"
+  | "reviewed";
 
 const STATUS_LABELS: Record<PreviewStatus, string> = {
   matched_student_number: "Matched (student number)",
@@ -39,6 +40,8 @@ const STATUS_LABELS: Record<PreviewStatus, string> = {
   duplicate_in_excel: "Duplicate in file",
   skipped_reenrolment_duplicate: "900 Series - skipped",
   separate_program_review: "ELCE - separate program",
+  reviewed_importable: "Reviewed - importable",
+  reviewed_excluded: "Reviewed - excluded",
 };
 
 const STATUS_COLORS: Record<PreviewStatus, string> = {
@@ -51,6 +54,8 @@ const STATUS_COLORS: Record<PreviewStatus, string> = {
   duplicate_in_excel: "bg-orange-100 text-orange-800",
   skipped_reenrolment_duplicate: "bg-purple-100 text-purple-800",
   separate_program_review: "bg-indigo-100 text-indigo-800",
+  reviewed_importable: "bg-teal-100 text-teal-800",
+  reviewed_excluded: "bg-rose-100 text-rose-800",
 };
 
 const LEVEL_LABELS: Record<WarningLevel, string> = {
@@ -102,6 +107,12 @@ function rowMatchesFilter(row: PreviewRow, filter: FilterValue): boolean {
       return row.matchStatus === "skipped_reenrolment_duplicate";
     case "elce":
       return row.matchStatus === "separate_program_review";
+    case "reviewed":
+      // Both reviewed-keep/correct (importable) and reviewed-exclude rows.
+      return (
+        row.matchStatus === "reviewed_importable" ||
+        row.matchStatus === "reviewed_excluded"
+      );
     default:
       return true;
   }
@@ -137,6 +148,7 @@ export function LegacyImportPreview() {
     { value: "skipped", label: "Skipped" },
     { value: "series_900", label: "900 Series" },
     { value: "elce", label: "ELCE" },
+    { value: "reviewed", label: "Reviewed" },
   ];
 
   return (
@@ -228,6 +240,14 @@ export function LegacyImportPreview() {
               <SummaryCard
                 label="ELCE separate program"
                 value={state.summary.elceSeparateProgram}
+              />
+              <SummaryCard
+                label="Reviewed importable"
+                value={state.summary.reviewedImportable}
+              />
+              <SummaryCard
+                label="Reviewed excluded"
+                value={state.summary.reviewedExcluded}
               />
             </div>
           </div>
