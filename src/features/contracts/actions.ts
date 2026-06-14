@@ -20,6 +20,8 @@ export async function getApplicationsForContracts() {
       contracts (id, status, contract_number, generated_at, signed_at)
     `
     )
+    // ACADEMIC-05: exclude historical legacy linkage applications.
+    .eq("is_legacy", false)
     .order("created_at", { ascending: false });
 
   return applications ?? [];

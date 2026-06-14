@@ -158,6 +158,14 @@ export default async function StudentDetailPage({
 
   const latestApp = applications[0] as (typeof applications)[0] | undefined;
 
+  // ACADEMIC-05: legacy students are linked to a program/batch through a minimal
+  // historical application so the hub can show program/batch context. They must
+  // NOT be pulled into the active enrolment workflow, so the active workflow
+  // sections (sales intake, workflow review, official checklist, fees, contract
+  // readiness, contract export, batch transfer) are hidden for legacy students.
+  // The Program and Batch section still renders so the linked context is shown.
+  const showWorkflow = !!latestApp && !isLegacyStudent;
+
   const program = latestApp?.programs as {
     id: string;
     program_code: string;
@@ -379,13 +387,13 @@ export default async function StudentDetailPage({
               </p>
             )}
           </div>
-          {latestApp && (
+          {showWorkflow && (
             <span
               className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
-                statusColors[latestApp.status] ?? "bg-zinc-100 text-zinc-600"
+                statusColors[latestApp!.status] ?? "bg-zinc-100 text-zinc-600"
               }`}
             >
-              {statusLabels[latestApp.status] ?? latestApp.status}
+              {statusLabels[latestApp!.status] ?? latestApp!.status}
             </span>
           )}
         </div>
@@ -452,7 +460,7 @@ export default async function StudentDetailPage({
         </Section>
 
         {/* 3. Sales Intake - editable by sales, viewable by admin */}
-        {isSalesOrAbove && latestApp && (
+        {isSalesOrAbove && showWorkflow && (
           <Section title="Sales Intake">
             <div className="mb-4 flex items-center gap-3">
               <span
@@ -521,7 +529,7 @@ export default async function StudentDetailPage({
         )}
 
         {/* Viewer: read-only intake/application view */}
-        {isViewer && latestApp && (
+        {isViewer && showWorkflow && (
           <Section title="Intake and Application">
             <div className="mb-3 flex items-center gap-3">
               <span
@@ -584,7 +592,7 @@ export default async function StudentDetailPage({
         )}
 
         {/* 4. Sales Intake Checklist */}
-        {(isSalesOrAbove || isViewer) && latestApp && (
+        {(isSalesOrAbove || isViewer) && showWorkflow && (
           <Section title="Sales Intake Checklist">
             <p className="mb-4 text-xs text-zinc-400">
               This is the sales-facing document checklist. The official admin
@@ -620,7 +628,7 @@ export default async function StudentDetailPage({
         )}
 
         {/* 5. Workflow Review - visible to all roles */}
-        {latestApp && (
+        {showWorkflow && (
           <Section title="Workflow Review">
             <ReviewWorkflowPanel
               applicationId={latestApp.id}
@@ -645,7 +653,7 @@ export default async function StudentDetailPage({
         )}
 
         {/* 5b. Admin Program and Batch Assignment - hidden when archived */}
-        {isAdmin && latestApp && !isStudentArchived && (
+        {isAdmin && showWorkflow && !isStudentArchived && (
           <Section title="Admin - Program and Batch Assignment">
             <AdminProgramSection
               application={{
@@ -728,7 +736,7 @@ export default async function StudentDetailPage({
                   value={practicumLocations || null}
                 />
               </FieldGrid>
-              {batch && latestApp && (
+              {batch && showWorkflow && (
                 <BatchAssignmentControls
                   studentId={studentId}
                   applicationId={latestApp.id}
@@ -864,7 +872,8 @@ export default async function StudentDetailPage({
           </div>
         </div>
 
-        {/* 8. Official Admin Checklist */}
+        {/* 8. Official Admin Checklist - hidden for legacy students */}
+        {showWorkflow && (
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
             <div className="flex items-center gap-3">
@@ -943,8 +952,10 @@ export default async function StudentDetailPage({
             )}
           </div>
         </div>
+        )}
 
-        {/* 9. Fees and Payment Schedule */}
+        {/* 9. Fees and Payment Schedule - hidden for legacy students */}
+        {showWorkflow && (
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
             <div className="flex items-center gap-3">
@@ -1043,6 +1054,7 @@ export default async function StudentDetailPage({
             )}
           </div>
         </div>
+        )}
 
         {/* 9b. Receipts - student-specific summary (FINANCE-10) */}
         <StudentReceiptSummarySection
@@ -1052,7 +1064,7 @@ export default async function StudentDetailPage({
         />
 
         {/* 10. Ready for Contract Summary */}
-        {latestApp && (
+        {showWorkflow && (
           <div className="rounded-lg border border-zinc-200 bg-white">
             <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
               <div className="flex items-center gap-3">
@@ -1133,7 +1145,8 @@ export default async function StudentDetailPage({
           </div>
         )}
 
-        {/* 11. Contract - Word Export */}
+        {/* 11. Contract - Word Export - hidden for legacy students */}
+        {showWorkflow && (
         <div className="rounded-lg border border-zinc-200 bg-white">
           <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
             <h2 className="text-base font-semibold text-zinc-900">
@@ -1215,6 +1228,7 @@ export default async function StudentDetailPage({
             </p>
           </div>
         </div>
+        )}
 
         {/* 12. Internal Notes Placeholder */}
         {isAdmin && (

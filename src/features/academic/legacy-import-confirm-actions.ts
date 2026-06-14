@@ -318,6 +318,10 @@ export async function confirmLegacyImport(
         is_legacy: true,
         record_source: "legacy_import",
         source_file_name: file.name,
+        // ACADEMIC-05: record the source sheet (for example "17th March") so the
+        // legacy linkage action can later map this student to the matching PSW
+        // batch. Additive and safe - it does not affect student creation.
+        source_sheet_name: parsedRow.sheet,
         legacy_imported_at: new Date().toISOString(),
         legacy_imported_by: profile.id,
         created_by: profile.id,
