@@ -1,4 +1,4 @@
-import { FileSpreadsheet, DatabaseBackup } from "lucide-react";
+import { FileSpreadsheet, DatabaseBackup, Link2 } from "lucide-react";
 import { getUserProfile } from "@/lib/profile";
 import { isAdminOrSuper } from "@/lib/roles";
 
@@ -7,6 +7,9 @@ import { isAdminOrSuper } from "@/lib/roles";
 // ACADEMIC-05A: replaced the premature Legacy Student Linkage card (which created
 // applications) with Legacy Source Backfill, which only records source sheet/row
 // metadata onto already imported legacy students.
+// ACADEMIC-05B: re-added Legacy Student Linkage now that historical batches and
+// source metadata exist. It creates minimal program/batch linkage applications
+// only (no fees, checklists, contracts, documents, or receipts).
 
 const tools = [
   {
@@ -22,6 +25,13 @@ const tools = [
       "Re-upload the PSW masterclass Excel to record which sheet and row each imported legacy student came from. No students or applications are created.",
     href: "/dashboard/admin-tools/academic-records/legacy-source-backfill",
     icon: DatabaseBackup,
+  },
+  {
+    title: "Legacy Student Linkage",
+    description:
+      "Link imported legacy PSW students to the PSW program and their historical PSW batch. Creates minimal application records only. No fees, checklists, contracts, or receipts.",
+    href: "/dashboard/admin-tools/academic-records/legacy-linkage",
+    icon: Link2,
   },
 ];
 
