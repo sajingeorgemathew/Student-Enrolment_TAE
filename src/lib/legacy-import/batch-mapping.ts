@@ -82,6 +82,78 @@ export type BatchMatch =
   | { status: "matched"; batchId: string }
   | { status: "needs_batch"; reason: string };
 
+// ACADEMIC-05B: explicit source-sheet -> historical PSW batch name mapping.
+// The fuzzy canonicalBatchKey matcher alone cannot connect a source sheet like
+// "17th March" to its batch "17th March 2025" because the batch name carries a
+// year that the sheet does not. This map encodes the ticket's mapping exactly,
+// and the batch row is then resolved by a canonical name match against the
+// batches the caller loaded. It is pure and has no database access.
+export const SHEET_TO_BATCH_NAME: Record<string, string> = {
+  "17th March": "17th March 2025",
+  "12th May": "12th May 2025",
+  "2nd July": "2nd July 2025",
+  "18th August": "18th August 2025",
+  "6th Oct": "6th Oct 2025",
+  "Dec 1st": "Dec 1st 2025",
+  "Jan 12th": "Jan 12th 2026",
+  "March 2": "March 2nd 2026",
+  "April 27": "April 27th 2026",
+  "June 01": "June 1st 2026",
+};
+
+// Resolve the historical PSW batch a legacy source sheet maps to. The source
+// sheet is matched canonically against the known PSW sheets, then the target
+// batch name is matched canonically against the loaded batches. Anything that is
+// not an unambiguous single match (no sheet recorded, sheet not mapped, no batch
+// row, or more than one batch) is reported as needing batch linkage rather than
+// guessing.
+export function resolveHistoricalBatchForSourceSheet(
+  sourceSheet: string | null | undefined,
+  batches: BatchLike[]
+): BatchMatch {
+  if (!sourceSheet) {
+    return {
+      status: "needs_batch",
+      reason: "No source sheet recorded for this student",
+    };
+  }
+
+  const sourceKey = canonicalBatchKey(sourceSheet);
+  let batchName: string | null = null;
+  for (const [sheet, name] of Object.entries(SHEET_TO_BATCH_NAME)) {
+    if (canonicalBatchKey(sheet) === sourceKey) {
+      batchName = name;
+      break;
+    }
+  }
+
+  if (!batchName) {
+    return {
+      status: "needs_batch",
+      reason: `Source sheet "${sourceSheet}" is not a mapped PSW sheet`,
+    };
+  }
+
+  const targetKey = canonicalBatchKey(batchName);
+  const matches = batches.filter(
+    (b) => canonicalBatchKey(b.batch_name) === targetKey || b.batch_name === batchName
+  );
+
+  if (matches.length === 1) {
+    return { status: "matched", batchId: matches[0].id };
+  }
+  if (matches.length === 0) {
+    return {
+      status: "needs_batch",
+      reason: `No PSW batch "${batchName}" exists for source sheet "${sourceSheet}"`,
+    };
+  }
+  return {
+    status: "needs_batch",
+    reason: `More than one PSW batch matches "${batchName}"`,
+  };
+}
+
 // Resolve a source sheet name to exactly one existing PSW batch. Requires an
 // unambiguous canonical match against batch_name or batch_code. Anything else
 // (no source sheet, no match, or more than one match) is reported as needing
