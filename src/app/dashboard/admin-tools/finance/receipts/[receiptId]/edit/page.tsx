@@ -8,6 +8,7 @@ import {
   EditReceiptForm,
   type EditReceiptInitial,
 } from "@/features/receipts/edit-receipt-form";
+import { ReceiptSequenceForm } from "@/features/receipts/receipt-sequence-form";
 
 export default async function EditReceiptPage({
   params,
@@ -114,8 +115,16 @@ export default async function EditReceiptPage({
         </p>
       </div>
 
-      <div className="max-w-3xl">
+      <div className="max-w-3xl space-y-6">
+        <ReceiptSequenceForm
+          key={`sequence-${receipt.receipt_number}`}
+          receiptId={receipt.id}
+          studentNumber={receipt.student_number_snapshot}
+          currentSequence={Number(receipt.receipt_sequence)}
+          currentReceiptNumber={receipt.receipt_number}
+        />
         <EditReceiptForm
+          key={`edit-${receipt.receipt_number}`}
           initial={initial}
           signatures={signatures}
           signaturesTableMissing={signaturesTableMissing}
