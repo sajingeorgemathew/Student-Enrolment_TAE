@@ -110,6 +110,21 @@ const CASH_LABEL_POINT: Point = { x: 54, y: 235 };
 // font dependency. "X" reads clearly beside a printed option.
 const CHECK_MARK = "X";
 
+// FINANCE-11. The template preprints the old campus address on the first
+// footer line ("25 Watline Ave, Unit 204, Mississauga, ON L4Z 2Z1", Arial Bold
+// Italic 8pt, baseline y 55.5, x 210-402). The generator masks that line with a
+// white box and prints the current address on the same baseline, centered on
+// the page, so the footer layout and the email/phone line below stay unchanged.
+// Remove this overlay once a template with the new address replaces the file.
+const FOOTER_ADDRESS_TEXT =
+  "75 Watline Avenue, Unit #101, Mississauga, ON L4Z 3E5";
+const FOOTER_ADDRESS_BASELINE = 55.464;
+const FOOTER_ADDRESS_SIZE = 8;
+// Covers the old address glyphs (descenders ~y 53.8, ascenders ~y 61.5) while
+// staying above the email/phone line (ascenders ~y 52) and clear of the footer
+// logos (x 36-128 and x 532-576).
+const FOOTER_ADDRESS_MASK = { x: 196, y: 53, width: 220, height: 9.5 } as const;
+
 /**
  * Generate the receipt PDF by overlaying dynamic values on the template.
  *
@@ -124,6 +139,9 @@ export async function generateReceiptPdf(
   const pdfDoc = await PDFDocument.load(templateBytes);
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const helveticaBoldOblique = await pdfDoc.embedFont(
+    StandardFonts.HelveticaBoldOblique
+  );
 
   const page = pdfDoc.getPages()[0];
   const black = rgb(0, 0, 0);
@@ -248,6 +266,23 @@ export async function generateReceiptPdf(
     COORDS.bottomDate,
     FONT_SIZE.small
   );
+
+  // --- Footer address ------------------------------------------------------
+  page.drawRectangle({
+    ...FOOTER_ADDRESS_MASK,
+    color: rgb(1, 1, 1),
+  });
+  const addressWidth = helveticaBoldOblique.widthOfTextAtSize(
+    FOOTER_ADDRESS_TEXT,
+    FOOTER_ADDRESS_SIZE
+  );
+  page.drawText(FOOTER_ADDRESS_TEXT, {
+    x: (page.getWidth() - addressWidth) / 2,
+    y: FOOTER_ADDRESS_BASELINE,
+    size: FOOTER_ADDRESS_SIZE,
+    font: helveticaBoldOblique,
+    color: black,
+  });
 
   return pdfDoc.save();
 }
